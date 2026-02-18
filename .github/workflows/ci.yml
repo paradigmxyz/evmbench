@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install backend deps (locked)
+        working-directory: backend
+        run: uv sync --locked --all-extras --dev
+
+      - name: Ruff
+        working-directory: backend
+        run: uv run ruff check .
+
+      - name: Python syntax check
+        working-directory: backend
+        run: |
+          python -m py_compile \
+            api/app.py \
+            docker/worker/init.py \
+            instancer/backends/docker.py \
+            instancer/backends/k8s.py
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.2.15"
+
+      - name: Install frontend deps (locked)
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        working-directory: frontend
+        run: bun run build

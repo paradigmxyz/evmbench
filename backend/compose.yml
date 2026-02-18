@@ -1,0 +1,213 @@
+services:
+  postgres:
+    image: postgres:18.0
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-evmbench}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-evmbench}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+    volumes:
+      - ./.data/postgres:/var/lib/postgresql
+    networks:
+      - db
+
+  rabbitmq:
+    image: rabbitmq:4.2-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-evmbench}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_local_alarms"
+        ]
+      interval: 2s
+      timeout: 5s
+      retries: 40
+      start_period: 10s
+    volumes:
+      - ./.data/rabbitmq:/var/lib/rabbitmq/
+    networks:
+      - mq
+
+  secretsvc:
+    image: evmbench/backend:latest
+    build:
+      dockerfile: docker/backend/Dockerfile
+      context: .
+    command: ["python", "-m", "secretsvc"]
+    container_name: secretsvc
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      SECRETSVC_HOST: 0.0.0.0
+      SECRETSVC_PORT: 8081
+      SECRETSVC_SECRETS_DIR: /app/.data/secrets
+      SECRETSVC_SECRETS_TOKEN_RO: ${SECRETS_TOKEN_RO:?set SECRETS_TOKEN_RO}
+      SECRETSVC_SECRETS_TOKEN_WO: ${SECRETS_TOKEN_WO:?set SECRETS_TOKEN_WO}
+    volumes:
+      - ./.data/secrets:/app/.data/secrets
+    networks:
+      - app
+      - shared_network
+
+  resultsvc:
+    image: evmbench/backend:latest
+    build:
+      dockerfile: docker/backend/Dockerfile
+      context: .
+    command: ["python", "-m", "resultsvc"]
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      RESULTSVC_HOST: 0.0.0.0
+      RESULTSVC_PORT: 8083
+      DATABASE_DSN: postgresql+asyncpg://${POSTGRES_USER:-evmbench}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-evmbench}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - db
+      - shared_network
+
+  oai_proxy:
+    profiles: ["proxy"]
+    image: evmbench/backend:latest
+    build:
+      dockerfile: docker/backend/Dockerfile
+      context: .
+    command: ["python", "-m", "oai_proxy"]
+    container_name: oai-proxy
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      OAI_PROXY_HOST: 0.0.0.0
+      OAI_PROXY_PORT: 8084
+      # Required only when running with profile "proxy"
+      OAI_PROXY_AES_KEY: ${OAI_PROXY_AES_KEY:-}
+    ports:
+      - "127.0.0.1:8084:8084"
+    networks:
+      shared_network:
+        aliases:
+          - oai.loc
+      app:
+
+  backend:
+    image: evmbench/backend:latest
+    build:
+      dockerfile: docker/backend/Dockerfile
+      context: .
+    command:
+      [
+        "/bin/sh",
+        "-c",
+        "alembic upgrade head && python -m api"
+      ]
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      BACKEND_WEB_HOST: 0.0.0.0
+      BACKEND_WEB_PORT: 1337
+      DATABASE_DSN: postgresql+asyncpg://${POSTGRES_USER:-evmbench}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-evmbench}
+      BACKEND_SECRETS_BACKEND: http
+      BACKEND_SECRETS_BACKEND_ARGUMENTS: >
+        {"url":"http://secretsvc:8081","token":"${SECRETS_TOKEN_WO:?set SECRETS_TOKEN_WO}"}
+      RABBITMQ_DSN: amqp://${RABBITMQ_USER:-evmbench}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+    ports:
+      - "127.0.0.1:${BACKEND_WEB_PORT:-1337}:1337"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      secretsvc:
+        condition: service_started
+      # Instancer is responsible for declaring the rabbitmq queue
+      instancer:
+        condition: service_started
+    networks:
+      - db
+      - mq
+      - app
+
+  instancer:
+    image: evmbench/backend:latest
+    build:
+      dockerfile: docker/backend/Dockerfile
+      context: .
+    command: ["python", "-m", "instancer"]
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_DSN: postgresql+asyncpg://${POSTGRES_USER:-evmbench}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-evmbench}
+      RABBITMQ_DSN: amqp://${RABBITMQ_USER:-evmbench}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      INSTANCER_WORKERS_BACKEND: docker
+      INSTANCER_WORKERS_BACKEND_ARGUMENTS: >
+        {"secretsvc_name":"secretsvc","shared_network":"shared_network"}
+      INSTANCER_SECRETSVC_HOST: secretsvc
+      INSTANCER_SECRETSVC_PORT: 8081
+      INSTANCER_SECRETS_TOKEN_RO: ${SECRETS_TOKEN_RO:?set SECRETS_TOKEN_RO}
+      INSTANCER_RESULTSVC_HOST: resultsvc
+      INSTANCER_RESULTSVC_PORT: 8083
+      # Optional: only required for proxy-token mode
+      INSTANCER_OAI_PROXY_BASE_URL: ${OAI_PROXY_BASE_URL:-}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      secretsvc:
+        condition: service_started
+      resultsvc:
+        condition: service_started
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - db
+      - mq
+      - app
+
+  prunner:
+    profiles: ["cleanup"]
+    image: evmbench/backend:latest
+    build:
+      dockerfile: docker/backend/Dockerfile
+      context: .
+    command: ["python", "-m", "prunner"]
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_DSN: postgresql+asyncpg://${POSTGRES_USER:-evmbench}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-evmbench}
+      PRUNNER_BACKEND: docker
+      PRUNNER_BACKEND_ARGUMENTS: >
+        {"manager_name":"${MANAGER_NAME:-evmbench-instancer}"}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - db
+
+networks:
+  app:
+  db:
+  mq:
+  # shared network is exposed to the untrusted environment
+  shared_network:
+    name: shared_network

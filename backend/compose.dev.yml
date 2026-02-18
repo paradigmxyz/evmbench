@@ -1,0 +1,93 @@
+services:
+  postgres:
+    image: postgres:18.0
+    restart: always
+    ports:
+      - '127.0.0.1:5432:5432'
+    environment:
+      - POSTGRES_PASSWORD=DO_NOT_USE_ME
+      - POSTGRES_USER=evmbench
+      - POSTGRES_DB=evmbench
+    volumes:
+      - ./.data/postgres:/var/lib/postgresql/
+    networks:
+      - db
+
+  rabbitmq:
+    image: 'rabbitmq:4.2-management-alpine'
+    ports:
+      - '127.0.0.1:5672:5672'
+      - '127.0.0.1:15672:15672'  # web ui
+    environment:
+      RABBITMQ_DEFAULT_PASS: DO_NOT_USE_ME
+      RABBITMQ_DEFAULT_USER: evmbench
+    volumes:
+      - ./.data/rabbitmq:/var/lib/rabbitmq/
+
+  secretsvc:
+    build:
+      dockerfile: docker/backend/Dockerfile
+      context: .
+    image: evmbench/backend:latest
+    command: ["python", "-m", "secretsvc"]
+    container_name: secretsvc
+    ports:
+      - "127.0.0.1:8081:8081"
+    environment:
+      - "SECRETSVC_HOST=0.0.0.0"
+      - "SECRETSVC_SECRETS_TOKEN_RO=${SECRETS_TOKEN_RO:-dev-secret}"
+      - "SECRETSVC_SECRETS_TOKEN_WO=${SECRETS_TOKEN_WO:-dev-secret-wo}"
+    env_file:
+      - .env
+    volumes:
+      - ./.data/secrets:/.data/secrets
+    networks:
+      shared_network:
+        aliases:
+          - secretsvc
+
+  resultsvc:
+    build:
+      dockerfile: docker/backend/Dockerfile
+      context: .
+    image: evmbench/backend:latest
+    command: ["python", "-m", "resultsvc"]
+    ports:
+      - "127.0.0.1:8083:8083"
+    environment:
+      - "RESULTSVC_HOST=0.0.0.0"
+      - "DATABASE_DSN=postgresql+asyncpg://evmbench:DO_NOT_USE_ME@postgres:5432/evmbench"
+    env_file:
+      - .env
+    networks:
+      db:
+      shared_network:
+        aliases:
+          - resultsvc
+
+  oai_proxy:
+    profiles: ["proxy"]
+    build:
+      dockerfile: docker/backend/Dockerfile
+      context: .
+    image: evmbench/backend:latest
+    command: ["python", "-m", "oai_proxy"]
+    container_name: oai-proxy
+    ports:
+      - "127.0.0.1:8084:8084"
+    environment:
+      - "OAI_PROXY_HOST=0.0.0.0"
+      - "OAI_PROXY_PORT=8084"
+      # Required only when running with profile "proxy"
+      - "OAI_PROXY_AES_KEY=${OAI_PROXY_AES_KEY:-}"
+    env_file:
+      - .env
+    networks:
+      shared_network:
+        aliases:
+          - oai.loc
+
+networks:
+  db:
+  shared_network:
+    name: shared_network
