@@ -11,7 +11,11 @@ from api.util.aes_gcm import decrypt_token, derive_key
 from oai_proxy.core.config import settings
 
 
-OPENAI_BASE_URL = 'https://api.openai.com'
+PROVIDER_BASE_URLS = {
+    'openai': 'https://api.openai.com',
+    'openrouter': 'https://openrouter.ai/api',
+}
+DEFAULT_PROVIDER = 'openai'
 # Marker token that triggers use of the static key
 STATIC_KEY_MARKER = 'STATIC'
 HOP_BY_HOP_HEADERS = {
@@ -87,25 +91,43 @@ def _filter_headers(items: Iterable[tuple[str, str]]) -> dict[str, str]:
     return headers
 
 
+def _get_provider_base_url(request: Request) -> str:
+    """Get the base URL for the provider from query params."""
+    provider = request.query_params.get('provider', DEFAULT_PROVIDER).lower()
+    return PROVIDER_BASE_URLS.get(provider, PROVIDER_BASE_URLS[DEFAULT_PROVIDER])
+
+
+def _filter_query_params(params: dict) -> dict:
+    """Remove internal params like 'provider' from forwarded query."""
+    return {k: v for k, v in params.items() if k != 'provider'}
+
+
 async def _proxy_request(request: Request, path: str) -> StreamingResponse:
     token = _get_authorization_token(request)
     openai_key = _resolve_openai_key(token)
+    base_url = _get_provider_base_url(request)
     forward_headers = _filter_headers(request.headers.items())
     forward_headers['authorization'] = f'Bearer {openai_key}'
 
+    # Add OpenRouter-specific headers if routing to OpenRouter
+    if 'openrouter.ai' in base_url:
+        forward_headers['http-referer'] = 'https://svmbench.io'
+        forward_headers['x-title'] = 'svmbench'
+
     target_path = path.lstrip('/')
     encoded_path = quote(target_path, safe='/')
-    target_url = f'{OPENAI_BASE_URL}/{encoded_path}' if encoded_path else OPENAI_BASE_URL
+    target_url = f'{base_url}/{encoded_path}' if encoded_path else base_url
 
     body = request.stream()
-    params = request.query_params
+    # Filter out internal params
+    filtered_params = _filter_query_params(dict(request.query_params))
 
     client = httpx.AsyncClient(timeout=httpx.Timeout(60.0, read=None))
     upstream = await client.send(
         client.build_request(
             request.method,
             target_url,
-            params=params,
+            params=filtered_params,
             headers=forward_headers,
             content=body,
         ),

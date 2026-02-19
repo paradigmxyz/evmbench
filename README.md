@@ -146,6 +146,6 @@ open:
 - `http://127.0.0.1:1337/v1/integration/frontend` (backend config endpoint)
 
 ## acknowledgments
-thank you to many folks on the ottersec team for support, particularly with building the frontend: es3n1n, jktrn, trixterthetux, sahuang
+this is a fork of [evmbench](https://github.com/paradigmxyz/evmbench).
 
 [![apache-2.0 license](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](/LICENSE)

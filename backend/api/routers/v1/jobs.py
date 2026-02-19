@@ -10,7 +10,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.core.config import settings
-from api.core.const import ALLOWED_MODELS
+from api.core.const import ALLOWED_MODELS, ALLOWED_PROVIDERS, OPENROUTER_ALLOWED_MODELS
 from api.core.deps import OptionalTokenDep, TokenDep, get_db
 from api.core.impl import auth_backend
 from api.core.rabbitmq import RabbitMQPublisher, get_rabbitmq_publisher
@@ -66,9 +66,17 @@ async def _require_no_active_job(*, session: AsyncSession, user_id: str) -> None
         )
 
 
-def _require_allowed_model(model: str) -> None:
-    if model not in ALLOWED_MODELS:
+def _require_allowed_model(model: str, provider: str) -> None:
+    if provider == 'openrouter':
+        if model not in OPENROUTER_ALLOWED_MODELS:
+            raise HTTPException(status_code=401, detail='Model is not allowed for OpenRouter')
+    elif model not in ALLOWED_MODELS:
         raise HTTPException(status_code=401, detail='Model is not allowed')
+
+
+def _require_allowed_provider(provider: str) -> None:
+    if provider not in ALLOWED_PROVIDERS:
+        raise HTTPException(status_code=401, detail='Provider is not allowed')
 
 
 def _resolve_openai_key(form: StartJobForm) -> str | None:
@@ -91,9 +99,15 @@ async def _maybe_validate_user_key(*, form: StartJobForm, openai_key: str | None
     if not openai_key:
         return
 
+    # Choose validation endpoint based on provider
+    if form.provider == 'openrouter':
+        validate_url = 'https://openrouter.ai/api/v1/models'
+    else:
+        validate_url = 'https://api.openai.com/v1/models'
+
     async with AsyncClient() as client:
         response = await client.get(
-            'https://api.openai.com/v1/models',
+            validate_url,
             headers={
                 'Authorization': f'Bearer {openai_key}',
             },
@@ -130,14 +144,16 @@ async def start_job(
     token: TokenDep,
 ) -> StartJobResponse:
     await _require_no_active_job(session=session, user_id=token.user_id)
-    _require_allowed_model(form.model)
+    _require_allowed_provider(form.provider)
+    _require_allowed_model(form.model, form.provider)
 
     use_proxy_static = settings.BACKEND_USE_PROXY_STATIC_KEY
-    use_proxy_tokens = settings.BACKEND_OAI_KEY_MODE == 'proxy'
+    # Force proxy mode for OpenRouter (we need to route to different base URL)
+    use_proxy_tokens = settings.BACKEND_OAI_KEY_MODE == 'proxy' or form.provider == 'openrouter'
     openai_key = _resolve_openai_key(form)
 
     if not use_proxy_static and not openai_key:
-        raise HTTPException(status_code=412, detail='openai_key is required')
+        raise HTTPException(status_code=412, detail='API key is required')
 
     await _maybe_validate_user_key(form=form, openai_key=openai_key)
 
@@ -152,7 +168,7 @@ async def start_job(
     )
 
     try:
-        bundle = build_secret_bundle(upload=form.file, openai_token=openai_token, key_mode=key_mode)
+        bundle = build_secret_bundle(upload=form.file, openai_token=openai_token, key_mode=key_mode, provider=form.provider)
         await secret_storage.save_secret(secret_ref, bundle)
 
         job = Job(

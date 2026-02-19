@@ -94,12 +94,14 @@ export async function setJobPublic(
 export async function startJob(
   file: File,
   model: string,
-  openaiKey: string,
+  apiKey: string,
+  provider: string = "openai",
 ): Promise<StartJobResponse> {
   const body = new FormData()
   body.append("file", file)
   body.append("model", model)
-  body.append("openai_key", openaiKey)
+  body.append("openai_key", apiKey)
+  body.append("provider", provider)
 
   const response = await fetch(`${API_BASE}/v1/jobs/start`, {
     method: "POST",

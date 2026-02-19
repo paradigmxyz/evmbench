@@ -41,11 +41,12 @@ MODEL_MAP_PATH = RUNNER_DIR / 'model_map.json'
 CODEX_RUNNER_SH = RUNNER_DIR / 'run_codex_detect.sh'
 
 
-def _write_codex_proxy_config(*, home: Path) -> None:
+def _write_codex_proxy_config(*, home: Path, provider: str = 'openai') -> None:
     """Configure Codex to call our local proxy provider.
 
     In proxy-token mode, OPENAI_API_KEY is not an OpenAI key; it's an opaque token.
     Codex is pointed at oai_proxy which decrypts the token and forwards upstream.
+    The provider parameter determines which upstream API the proxy routes to.
     """
     if not OAI_PROXY_BASE_URL:
         msg = 'Missing OAI_PROXY_BASE_URL for proxy mode'
@@ -55,6 +56,9 @@ def _write_codex_proxy_config(*, home: Path) -> None:
     if not base_url.endswith('/v1'):
         base_url = f'{base_url}/v1'
 
+    # Add provider as query param so proxy knows where to route
+    base_url_with_provider = f'{base_url}?provider={provider}'
+
     config_dir = home / '.codex'
     config_dir.mkdir(parents=True, exist_ok=True)
     config_path = config_dir / 'config.toml'
@@ -62,7 +66,7 @@ def _write_codex_proxy_config(*, home: Path) -> None:
         'model_provider = "proxy"\n\n'
         '[model_providers.proxy]\n'
         'name = "proxy"\n'
-        f'base_url = "{base_url}"\n'
+        f'base_url = "{base_url_with_provider}"\n'
         f'wire_api = "{OAI_PROXY_WIRE_API}"\n'
         'env_key = "OPENAI_API_KEY"\n'
     )
@@ -160,7 +164,7 @@ def _extract_json_payload(audit_md: str) -> dict:
     return _validate_report_payload(payload)
 
 
-def _run_codex_detect(*, openai_token: str, key_mode: str) -> Path:
+def _run_codex_detect(*, openai_token: str, key_mode: str, provider: str = 'openai') -> Path:
     env = os.environ.copy()
     env['OPENAI_API_KEY'] = openai_token
     # Codex CLI supports using CODEX_API_KEY; keep it aligned to avoid surprises.
@@ -172,7 +176,7 @@ def _run_codex_detect(*, openai_token: str, key_mode: str) -> Path:
 
     # Proxy-token mode: write Codex config to route requests through oai_proxy.
     if key_mode in {'proxy', 'proxy_static'}:
-        _write_codex_proxy_config(home=AGENT_DIR)
+        _write_codex_proxy_config(home=AGENT_DIR, provider=provider)
 
     if not DETECT_MD_PATH.exists():
         msg = f'Missing detect instructions: {DETECT_MD_PATH}'
@@ -242,11 +246,18 @@ def _unpack_bundle(bundle: bytes, work_dir: Path) -> tuple[Path, str, str]:
     if key_mode not in {'direct', 'proxy', 'proxy_static'}:
         key_mode = 'direct'
 
+    provider = key_payload.get('provider') or 'openai'
+    if not isinstance(provider, str):
+        provider = 'openai'
+    provider = provider.strip().lower()
+    if provider not in {'openai', 'openrouter'}:
+        provider = 'openai'
+
     if not upload_zip_path.exists():
         msg = 'Missing upload.zip in bundle'
         raise RuntimeError(msg)
 
-    return upload_zip_path, openai_token, key_mode
+    return upload_zip_path, openai_token, key_mode, provider
 
 
 async def main() -> None:
@@ -268,7 +279,7 @@ async def main() -> None:
 
     with tempfile.TemporaryDirectory(prefix='svmbench-worker-') as tmpdir:
         work_dir = Path(tmpdir)
-        upload_zip_path, openai_token, key_mode = _unpack_bundle(bundle, work_dir)
+        upload_zip_path, openai_token, key_mode, provider = _unpack_bundle(bundle, work_dir)
 
         if AUDIT_DIR.exists():
             shutil.rmtree(AUDIT_DIR)
@@ -277,9 +288,9 @@ async def main() -> None:
         with zipfile.ZipFile(upload_zip_path, 'r') as zf:
             zf.extractall(AUDIT_DIR)  # noqa: S202
 
-        logger.info('Extracted the bundle, running detect-only agent...')
+        logger.info(f'Extracted the bundle, running detect-only agent with provider={provider}...')
         try:
-            audit_md = _run_codex_detect(openai_token=openai_token, key_mode=key_mode)
+            audit_md = _run_codex_detect(openai_token=openai_token, key_mode=key_mode, provider=provider)
             audit_text = audit_md.read_text()
             _extract_json_payload(audit_text)
 

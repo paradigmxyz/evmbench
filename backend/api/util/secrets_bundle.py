@@ -6,7 +6,7 @@ import orjson
 from fastapi import UploadFile
 
 
-def build_secret_bundle(*, upload: UploadFile, openai_token: str, key_mode: str) -> bytes:
+def build_secret_bundle(*, upload: UploadFile, openai_token: str, key_mode: str, provider: str = 'openai') -> bytes:
     upload_file = upload.file
 
     # NOTE(es3n1n): upload.size is optional
@@ -14,7 +14,7 @@ def build_secret_bundle(*, upload: UploadFile, openai_token: str, key_mode: str)
     upload_size = upload_file.tell()
     upload_file.seek(0)
 
-    key_payload = orjson.dumps({'openai_token': openai_token, 'key_mode': key_mode})
+    key_payload = orjson.dumps({'openai_token': openai_token, 'key_mode': key_mode, 'provider': provider})
 
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode='w') as tar:

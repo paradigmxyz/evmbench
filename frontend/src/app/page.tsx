@@ -2,7 +2,6 @@
 
 import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useCallback, useMemo, useState } from "react"
 import { AppFooter } from "@/components/app-footer"
@@ -27,13 +26,29 @@ import { addRecentJob, type RecentJob } from "@/lib/recent-jobs"
 import { inferPackageName } from "@/lib/upload-utils"
 import { createZipFromFiles } from "@/lib/zip"
 import { useUploadStore } from "@/store/upload-store"
-import openaiSmall from "../../public/openai-small.svg"
-import paradigmSmall from "../../public/paradigm-small.svg"
+
+const OPENAI_MODELS = [
+  { value: "codex-gpt-5.2", label: "codex-gpt-5.2" },
+  { value: "codex-gpt-5.1-codex-max", label: "codex-gpt-5.1-codex-max" },
+]
+
+const OPENROUTER_MODELS = [
+  { value: "openai/gpt-5.2-codex", label: "openai/gpt-5.2-codex" },
+  { value: "openai/gpt-5.1-codex-max", label: "openai/gpt-5.1-codex-max" },
+  { value: "openai/gpt-5.2", label: "openai/gpt-5.2" },
+  { value: "anthropic/claude-opus-4-5", label: "anthropic/claude-opus-4-5" },
+  { value: "anthropic/claude-sonnet-4-5", label: "anthropic/claude-sonnet-4-5" },
+  { value: "google/gemini-2.5-pro", label: "google/gemini-2.5-pro" },
+  { value: "google/gemini-2.5-flash", label: "google/gemini-2.5-flash" },
+  { value: "deepseek/deepseek-r1", label: "deepseek/deepseek-r1" },
+  { value: "deepseek/deepseek-chat", label: "deepseek/deepseek-chat" },
+]
 
 export default function Page() {
   const router = useRouter()
   const { files, packageName, setUpload, clearUpload } = useUploadStore()
-  const [openaiKey, setOpenaiKey] = useSessionStorage("svmbench.openaiKey", "")
+  const [apiKey, setApiKey] = useSessionStorage("svmbench.apiKey", "")
+  const [provider, setProvider] = useState<"openai" | "openrouter">("openai")
   const [model, setModel] = useState("codex-gpt-5.2")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -55,6 +70,8 @@ export default function Page() {
     return null
   }, [files, packageName])
 
+  const models = provider === "openrouter" ? OPENROUTER_MODELS : OPENAI_MODELS
+
   const canSubmit =
     !!files && fileCount > 0 && !isSubmitting && !isAuthLoading && isAuthorized
 
@@ -67,9 +84,22 @@ export default function Page() {
 
   const handleKeyChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      setOpenaiKey(event.target.value)
+      setApiKey(event.target.value)
     },
-    [setOpenaiKey],
+    [setApiKey],
+  )
+
+  const handleProviderChange = useCallback(
+    (value: "openai" | "openrouter") => {
+      setProvider(value)
+      // Reset model to first available for new provider
+      if (value === "openrouter") {
+        setModel(OPENROUTER_MODELS[0].value)
+      } else {
+        setModel(OPENAI_MODELS[0].value)
+      }
+    },
+    [],
   )
 
   const handleSubmit = async () => {
@@ -78,7 +108,7 @@ export default function Page() {
       setSubmitError("Authorize with GitHub to start analysis.")
       return
     }
-    const trimmedKey = openaiKey.trim()
+    const trimmedKey = apiKey.trim()
 
     setIsSubmitting(true)
     setSubmitError(null)
@@ -86,8 +116,7 @@ export default function Page() {
     try {
       const name = selectedLabel ?? "files"
       const zipFile = await createZipFromFiles(files, name)
-      const response = await startJob(zipFile, model, trimmedKey)
-      // Persist locally so users can navigate back without server-side auth/history.
+      const response = await startJob(zipFile, model, trimmedKey, provider)
       const next = addRecentJob({
         job_id: response.job_id,
         label: name,
@@ -111,29 +140,15 @@ export default function Page() {
             <div className="space-y-6 lg:col-span-3">
               <div>
                 <div className="-ms-2 mb-3 flex items-center gap-2">
-                  <a
-                    href="https://openai.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <video
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="size-16 rounded-lg"
                   >
-                    <Image
-                      src={openaiSmall}
-                      alt="OpenAI"
-                      className="size-12 dark:invert"
-                    />
-                  </a>
-                  <div className="h-9 w-px bg-border" />
-                  <a
-                    href="https://paradigm.xyz"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Image
-                      src={paradigmSmall}
-                      alt="Paradigm"
-                      className="size-12 dark:invert"
-                    />
-                  </a>
+                    <source src="/dance.webm" type="video/webm" />
+                  </video>
                 </div>
                 <h1 className="text-5xl leading-[1.1] font-serif text-foreground mb-1.5">
                   svmbench
@@ -143,9 +158,9 @@ export default function Page() {
                 </h2>
                 <div className="space-y-2 text-base text-foreground/80">
                   <p className="leading-tight">
-                    svmbench is an open benchmark from openai and paradigm that
-                    evaluates whether ai agents can detect, patch, and exploit
-                    high-severity vulnerabilities in solana programs.
+                    svmbench is an open benchmark that evaluates whether ai
+                    agents can detect, patch, and exploit high-severity
+                    vulnerabilities in solana programs.
                   </p>
                   <p className="leading-tight">
                     this interface focuses on detection and only reports
@@ -154,25 +169,12 @@ export default function Page() {
                   </p>
                   <div className="flex flex-col items-start gap-0.5">
                     <a
-                      href="https://www.paradigm.xyz/2026/02/svmbench"
+                      href="https://github.com/neko/svmbench"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-0.5 font-serif leading-tight underline-offset-4 hover:text-foreground hover:underline"
                     >
-                      read the blog post
-                      <HugeiconsIcon
-                        icon={ArrowUpRight01Icon}
-                        strokeWidth={2}
-                        className="size-3.5"
-                      />
-                    </a>
-                    <a
-                      href="https://github.com/paradigmxyz/svmbench"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-0.5 font-serif leading-tight underline-offset-4 hover:text-foreground hover:underline"
-                    >
-                      view the repo
+                      repo
                       <HugeiconsIcon
                         icon={ArrowUpRight01Icon}
                         strokeWidth={2}
@@ -195,19 +197,36 @@ export default function Page() {
               />
 
               <div className="grid gap-3 text-xs text-muted-foreground">
+                <div className="grid gap-1">
+                  <Label
+                    htmlFor="provider-select"
+                    className="text-xs text-foreground"
+                  >
+                    Provider
+                  </Label>
+                  <Select value={provider} onValueChange={handleProviderChange}>
+                    <SelectTrigger id="provider-select" className="w-full">
+                      <SelectValue placeholder="Select provider" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="openai">OpenAI</SelectItem>
+                      <SelectItem value="openrouter">OpenRouter</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 {!isConfigLoading && !keyPredefined && (
                   <div className="grid gap-1">
                     <Label
-                      htmlFor="openai-key"
+                      htmlFor="api-key"
                       className="text-xs text-foreground"
                     >
-                      OpenAI API Key
+                      {provider === "openrouter" ? "OpenRouter API Key" : "OpenAI API Key"}
                     </Label>
                     <Input
-                      id="openai-key"
+                      id="api-key"
                       type="password"
-                      placeholder="sk-&hellip;"
-                      value={openaiKey}
+                      placeholder={provider === "openrouter" ? "sk-or-&hellip;" : "sk-&hellip;"}
+                      value={apiKey}
                       onChange={handleKeyChange}
                     />
                   </div>
@@ -224,12 +243,11 @@ export default function Page() {
                       <SelectValue placeholder="Select model" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="codex-gpt-5.2">
-                        codex-gpt-5.2
-                      </SelectItem>
-                      <SelectItem value="codex-gpt-5.1-codex-max">
-                        codex-gpt-5.1-codex-max
-                      </SelectItem>
+                      {models.map((m) => (
+                        <SelectItem key={m.value} value={m.value}>
+                          {m.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

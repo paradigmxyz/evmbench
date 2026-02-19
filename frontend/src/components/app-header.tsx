@@ -1,12 +1,9 @@
 "use client"
 
-import Image from "next/image"
 import Link from "next/link"
 import { AuthStatus } from "@/components/auth-status"
 import { ModeToggle } from "@/components/mode-toggle"
 import { cn } from "@/lib/utils"
-import openaiSmall from "../../public/openai-small.svg"
-import paradigmSmall from "../../public/paradigm-small.svg"
 
 interface AppHeaderProps {
   left?: React.ReactNode
@@ -36,29 +33,15 @@ export function AppHeader({
       <div className="flex min-w-0 items-center gap-1">
         {showLogo && (
           <div className="flex shrink-0 items-center gap-1">
-            <a
-              href="https://openai.com"
-              target="_blank"
-              rel="noopener noreferrer"
+            <video
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="size-7 rounded"
             >
-              <Image
-                src={openaiSmall}
-                alt="OpenAI"
-                className="size-7 dark:invert"
-              />
-            </a>
-            <div className="h-5 w-px bg-border" />
-            <a
-              href="https://paradigm.xyz"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Image
-                src={paradigmSmall}
-                alt="Paradigm"
-                className="size-7 dark:invert"
-              />
-            </a>
+              <source src="/happy.webm" type="video/webm" />
+            </video>
           </div>
         )}
         {left}

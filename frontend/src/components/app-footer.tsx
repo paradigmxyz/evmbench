@@ -1,8 +1,6 @@
 "use client"
 
-import Image from "next/image"
 import { cn } from "@/lib/utils"
-import osecLogo from "../../public/osec.svg"
 
 interface AppFooterProps {
   className?: string
@@ -19,25 +17,28 @@ export function AppFooter({ className, showBorder = true }: AppFooterProps) {
       )}
     >
       <div className="flex flex-wrap items-center justify-center gap-x-3">
-        <span className="font-serif text-sm">
-          &copy; {new Date().getFullYear()} All rights reserved.
-        </span>
+        <a
+          href="https://x.com/256"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-serif text-sm underline underline-offset-2 hover:text-foreground"
+        >
+          @256
+        </a>
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="font-serif text-sm">Built in collaboration with</span>
-        <a
-          href="https://osec.io"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="opacity-50 transition-opacity hover:opacity-100"
-        >
-          <Image
-            src={osecLogo}
-            alt="OtterSec"
-            className="h-4.5 w-auto dark:invert"
-          />
-        </a>
+        <span className="font-serif text-sm">
+          fork of{" "}
+          <a
+            href="https://github.com/paradigmxyz/evmbench"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            evmbench
+          </a>
+        </span>
       </div>
     </footer>
   )
