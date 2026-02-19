@@ -7,6 +7,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { toast } from "sonner"
+import { PATH_PREFIX } from "@/lib/api"
 import { AppHeader } from "@/components/app-header"
 import { Button } from "@/components/ui/button"
 import {
@@ -197,7 +198,7 @@ export function ResultsHeader({
 }: ResultsHeaderProps) {
   const isMobile = useMediaQuery("(max-width: 768px)")
   const statusError = error || job?.error || null
-  const sharePath = jobId ? `/results?job_id=${jobId}` : ""
+  const sharePath = jobId ? `${PATH_PREFIX}/results?job_id=${jobId}` : ""
   const isSharePublic = !isAuthEnabled || Boolean(job?.public)
 
   const handleCopyLink = () => {
