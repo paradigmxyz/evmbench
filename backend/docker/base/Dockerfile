@@ -6,10 +6,8 @@ ENV WORKSPACE_BASE=/home \
     AUDIT_DIR=/home/agent/audit \
     SUBMISSION_DIR=/home/agent/submission \
     LOGS_DIR=/home/logs \
-    NVM_DIR=/home/agent/.nvm \
-    FOUNDRY_DIR=/home/agent/.foundry
+    NVM_DIR=/home/agent/.nvm
 
-ENV PATH=$FOUNDRY_DIR/bin:$PATH
 ENV PATH=$AGENT_DIR/.local/bin:$PATH
 ENV HOME=$AGENT_DIR
 
@@ -59,16 +57,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends ripgrep && rm -
 
 WORKDIR "$AGENT_DIR"
 
-# install foundry
-RUN curl -L https://foundry.paradigm.xyz | bash
-RUN foundryup
+# install rust and cargo
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/home/agent/.cargo/bin:$PATH"
 
-# install slither (static analysis). This is "best effort": solc versioning
-# varies across codebases; users/agents can install/use solc-select as needed.
-RUN python3 -m pip install --no-cache-dir slither-analyzer solc-select
+# install solana cli tools
+RUN sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+ENV PATH="/home/agent/.local/share/solana/install/active_release/bin:$PATH"
+
+# install anchor cli
+RUN cargo install --git https://github.com/coral-xyz/anchor avm --force && \
+    avm install latest && \
+    avm use latest
 
 # set the git config up
 RUN git config --global --add safe.directory $AGENT_DIR && \
     git config --global --add safe.directory $AUDIT_DIR && \
-    git config --global user.email "agent@evmbench.local" && \
+    git config --global user.email "agent@svmbench.local" && \
     git config --global user.name "agent"

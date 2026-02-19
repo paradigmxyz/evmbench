@@ -81,7 +81,7 @@ class DockerBackend(BackendABC):
                     }
                 },
             },
-            name=f'evmbench-worker-{options.job_id}',
+            name=f'svmbench-worker-{options.job_id}',
         )
 
         try:

@@ -9,7 +9,7 @@ app = FastAPI(
     redoc_url=None,
     openapi_url=None,
     version='0.0.1',
-    title='evmbench-oai-proxy',
+    title='svmbench-oai-proxy',
     default_response_class=ORJSONResponse,
 )
 app.include_router(catch_all_router)

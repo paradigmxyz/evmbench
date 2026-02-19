@@ -30,7 +30,7 @@ app = FastAPI(
     openapi_url='/openapi.json' if settings.BACKEND_DEV else None,
     redoc_url=None,
     version='0.0.1',
-    title='evmbench-backend',
+    title='svmbench-backend',
     default_response_class=ORJSONResponse,
     lifespan=lifespan,
 )

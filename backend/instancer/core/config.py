@@ -28,12 +28,12 @@ class Settings(BaseSettings):
     )
 
     INSTANCER_MANAGER_NAME: str = Field(
-        default='evmbench-instancer',
+        default='svmbench-instancer',
         validation_alias=AliasChoices('INSTANCER_MANAGER_NAME', 'MANAGER_NAME'),
     )
     INSTANCER_WORKERS_BACKEND: str = 'docker'
     INSTANCER_WORKERS_BACKEND_ARGUMENTS: dict[str, str] = Field(default_factory=dict)
-    INSTANCER_WORKER_IMAGE: str = 'evmbench/worker:latest'
+    INSTANCER_WORKER_IMAGE: str = 'svmbench/worker:latest'
     INSTANCER_WORKER_RUNTIME_IMAGE: str | None = None
     INSTANCER_WORKER_RUNTIME_PORT: int = 8082
     INSTANCER_JOB_TTL_SECONDS: int = 60

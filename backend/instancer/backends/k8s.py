@@ -15,7 +15,7 @@ from instancer.core.config import settings
 
 class Labels(StrEnum):
     MANAGED_BY = 'app.kubernetes.io/managed-by'
-    JOB_ID = 'evmbench.osec.io/job-id'
+    JOB_ID = 'svmbench.osec.io/job-id'
 
 
 def ts() -> int:
@@ -40,7 +40,7 @@ class K8sBackend(BackendABC):
             raise ValueError(msg)
 
         self.image_pull_policy = args.get('image_pull_policy', 'Always')
-        self.managed_by_value = args.get('managed_by', 'evmbench')
+        self.managed_by_value = args.get('managed_by', 'svmbench')
 
         # this is primarily only needed for local development,
         #   so that kind can connect to internal IP outside the cluster
@@ -59,7 +59,7 @@ class K8sBackend(BackendABC):
         batch_v1 = client.BatchV1Api()
         networking_v1 = client.NetworkingV1Api()
 
-        namespace_name = f'evmbench-job-{options.job_id}'
+        namespace_name = f'svmbench-job-{options.job_id}'
         while True:
             try:
                 ns = await self._k8s(v1.read_namespace, namespace_name)
@@ -121,7 +121,7 @@ class K8sBackend(BackendABC):
                                 client.V1NetworkPolicyPort(port=53, protocol='UDP'),
                             ],
                         ),
-                        # allow egress to evmbench:secretsvc (for prod)
+                        # allow egress to svmbench:secretsvc (for prod)
                         client.V1NetworkPolicyEgressRule(
                             to=[
                                 client.V1NetworkPolicyPeer(
@@ -132,7 +132,7 @@ class K8sBackend(BackendABC):
                                     ),
                                     namespace_selector=client.V1LabelSelector(
                                         match_labels={
-                                            'kubernetes.io/metadata.name': 'evmbench',
+                                            'kubernetes.io/metadata.name': 'svmbench',
                                         },
                                     ),
                                 ),
@@ -141,7 +141,7 @@ class K8sBackend(BackendABC):
                                 client.V1NetworkPolicyPort(port=8081, protocol='TCP'),  # secretsvc
                             ],
                         ),
-                        # allow egress to evmbench:resultsvc (for prod)
+                        # allow egress to svmbench:resultsvc (for prod)
                         client.V1NetworkPolicyEgressRule(
                             to=[
                                 client.V1NetworkPolicyPeer(
@@ -152,7 +152,7 @@ class K8sBackend(BackendABC):
                                     ),
                                     namespace_selector=client.V1LabelSelector(
                                         match_labels={
-                                            'kubernetes.io/metadata.name': 'evmbench',
+                                            'kubernetes.io/metadata.name': 'svmbench',
                                         },
                                     ),
                                 ),
@@ -161,7 +161,7 @@ class K8sBackend(BackendABC):
                                 client.V1NetworkPolicyPort(port=8083, protocol='TCP'),  # resultsvc
                             ],
                         ),
-                        # allow egress to evmbench:oai_proxy
+                        # allow egress to svmbench:oai_proxy
                         client.V1NetworkPolicyEgressRule(
                             to=[
                                 client.V1NetworkPolicyPeer(
@@ -172,7 +172,7 @@ class K8sBackend(BackendABC):
                                     ),
                                     namespace_selector=client.V1LabelSelector(
                                         match_labels={
-                                            'kubernetes.io/metadata.name': 'evmbench',
+                                            'kubernetes.io/metadata.name': 'svmbench',
                                         },
                                     ),
                                 ),
@@ -206,7 +206,7 @@ class K8sBackend(BackendABC):
 
         job = client.V1Job(
             metadata=client.V1ObjectMeta(
-                name=f'evmbench-worker-{options.job_id}',
+                name=f'svmbench-worker-{options.job_id}',
                 labels={
                     Labels.MANAGED_BY: self.managed_by_value,
                     Labels.JOB_ID: options.job_id,
@@ -233,7 +233,7 @@ class K8sBackend(BackendABC):
                         restart_policy='Never',
                         containers=[
                             client.V1Container(
-                                name='evmbench-worker',
+                                name='svmbench-worker',
                                 image=settings.INSTANCER_WORKER_IMAGE,
                                 image_pull_policy=self.image_pull_policy,
                                 env=[client.V1EnvVar(name=k, value=v) for k, v in env.items()],

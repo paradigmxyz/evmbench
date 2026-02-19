@@ -4,7 +4,7 @@ export interface RecentJob {
   created_at_ms: number
 }
 
-const STORAGE_KEY = "evmbench.recentJobs.v1"
+const STORAGE_KEY = "svmbench.recentJobs.v1"
 const MAX_RECENT = 20
 
 function safeParseRecentJobs(raw: string | null): RecentJob[] {

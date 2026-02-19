@@ -18,8 +18,8 @@ const mono = Roboto_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "evmbench",
-  description: "Smart contract vulnerability detection",
+  title: "svmbench",
+  description: "solana program vulnerability detection",
 }
 
 export default function RootLayout({

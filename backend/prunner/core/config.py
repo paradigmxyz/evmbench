@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     PRUNNER_POLL_SECONDS: float = 10.0
     PRUNNER_MAX_CONTAINER_AGE_SECONDS: int = 3600
     PRUNNER_MANAGER_NAME: str = Field(
-        default='evmbench-instancer',
+        default='svmbench-instancer',
         validation_alias=AliasChoices('PRUNNER_MANAGER_NAME', 'MANAGER_NAME', 'INSTANCER_MANAGER_NAME'),
     )
 

@@ -8,7 +8,7 @@ app = FastAPI(
     docs_url='/',
     redoc_url=None,
     version='0.0.1',
-    title='evmbench-secrets',
+    title='svmbench-secrets',
     default_response_class=ORJSONResponse,
 )
 app.include_router(v1_router)

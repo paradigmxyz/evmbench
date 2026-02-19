@@ -33,12 +33,12 @@ import paradigmSmall from "../../public/paradigm-small.svg"
 export default function Page() {
   const router = useRouter()
   const { files, packageName, setUpload, clearUpload } = useUploadStore()
-  const [openaiKey, setOpenaiKey] = useSessionStorage("evmbench.openaiKey", "")
+  const [openaiKey, setOpenaiKey] = useSessionStorage("svmbench.openaiKey", "")
   const [model, setModel] = useState("codex-gpt-5.2")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [recentJobs, setRecentJobs] = useLocalStorage<RecentJob[]>(
-    "evmbench.recentJobs.v1",
+    "svmbench.recentJobs.v1",
     [],
   )
   const {
@@ -136,30 +136,30 @@ export default function Page() {
                   </a>
                 </div>
                 <h1 className="text-5xl leading-[1.1] font-serif text-foreground mb-1.5">
-                  evmbench
+                  svmbench
                 </h1>
                 <h2 className="text-2xl leading-[1.1] font-serif text-foreground mb-3">
-                  Evaluating AI performance on high-severity contract findings
+                  evaluating ai performance on high-severity solana program findings
                 </h2>
                 <div className="space-y-2 text-base text-foreground/80">
                   <p className="leading-tight">
-                    evmbench is an open benchmark from OpenAI and Paradigm that
-                    evaluates whether AI agents can detect, patch, and exploit
-                    high-severity vulnerabilities.
+                    svmbench is an open benchmark from openai and paradigm that
+                    evaluates whether ai agents can detect, patch, and exploit
+                    high-severity vulnerabilities in solana programs.
                   </p>
                   <p className="leading-tight">
-                    This interface focuses on detection and only reports
-                    high-severity findings. Upload a contract folder, provide an
-                    API key, and start a run.
+                    this interface focuses on detection and only reports
+                    high-severity findings. upload a program folder, provide an
+                    api key, and start a run.
                   </p>
                   <div className="flex flex-col items-start gap-0.5">
                     <a
-                      href="https://www.paradigm.xyz/2026/02/evmbench"
+                      href="https://www.paradigm.xyz/2026/02/svmbench"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-0.5 font-serif leading-tight underline-offset-4 hover:text-foreground hover:underline"
                     >
-                      Read the blog post
+                      read the blog post
                       <HugeiconsIcon
                         icon={ArrowUpRight01Icon}
                         strokeWidth={2}
@@ -167,12 +167,12 @@ export default function Page() {
                       />
                     </a>
                     <a
-                      href="https://github.com/paradigmxyz/evmbench"
+                      href="https://github.com/paradigmxyz/svmbench"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-0.5 font-serif leading-tight underline-offset-4 hover:text-foreground hover:underline"
                     >
-                      View the repo
+                      view the repo
                       <HugeiconsIcon
                         icon={ArrowUpRight01Icon}
                         strokeWidth={2}

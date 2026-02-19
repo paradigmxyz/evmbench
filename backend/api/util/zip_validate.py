@@ -58,9 +58,9 @@ def _ensure_ratio(total_uncompressed: int, compressed_size: int, max_ratio: int)
         raise ZipValidationError(msg)
 
 
-def _ensure_solidity(*, has_solidity: bool, require_solidity: bool) -> None:
-    if require_solidity and not has_solidity:
-        msg = 'Zip does not contain Solidity (*.sol) files.'
+def _ensure_rust(*, has_rust: bool, require_rust: bool) -> None:
+    if require_rust and not has_rust:
+        msg = 'zip does not contain rust (*.rs) files.'
         raise ZipValidationError(msg)
 
 
@@ -68,7 +68,7 @@ def _ensure_solidity(*, has_solidity: bool, require_solidity: bool) -> None:
 class _ZipScanResult:
     total_uncompressed: int
     file_count: int
-    has_solidity: bool
+    has_rust: bool
 
 
 def _scan_zip(
@@ -76,11 +76,11 @@ def _scan_zip(
     *,
     max_files: int,
     max_uncompressed_bytes: int,
-    require_solidity: bool,
+    require_rust: bool,
 ) -> _ZipScanResult:
     total_uncompressed = 0
     file_count = 0
-    has_solidity = False
+    has_rust = False
 
     for info in zf.infolist():
         name = info.filename
@@ -95,13 +95,13 @@ def _scan_zip(
         total_uncompressed += int(info.file_size)
         _ensure_uncompressed_limit(total_uncompressed, max_uncompressed_bytes)
 
-        if require_solidity and name.lower().endswith('.sol'):
-            has_solidity = True
+        if require_rust and name.lower().endswith('.rs'):
+            has_rust = True
 
     return _ZipScanResult(
         total_uncompressed=total_uncompressed,
         file_count=file_count,
-        has_solidity=has_solidity,
+        has_rust=has_rust,
     )
 
 
@@ -122,7 +122,7 @@ def validate_upload_zip(
     max_uncompressed_bytes: int,
     max_files: int,
     max_ratio: int,
-    require_solidity: bool = True,
+    require_rust: bool = True,
 ) -> None:
     file_obj = upload.file
     compressed_size = _get_stream_size(file_obj)
@@ -133,10 +133,10 @@ def validate_upload_zip(
                 zf,
                 max_files=max_files,
                 max_uncompressed_bytes=max_uncompressed_bytes,
-                require_solidity=require_solidity,
+                require_rust=require_rust,
             )
             _ensure_ratio(scan.total_uncompressed, compressed_size, max_ratio)
-            _ensure_solidity(has_solidity=scan.has_solidity, require_solidity=require_solidity)
+            _ensure_rust(has_rust=scan.has_rust, require_rust=require_rust)
     except zipfile.BadZipFile as exc:
         msg = 'Invalid zip file.'
         raise ZipValidationError(msg) from exc

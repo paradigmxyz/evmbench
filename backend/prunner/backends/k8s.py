@@ -14,7 +14,7 @@ from prunner.core.db import get_running_jobs, mark_job_failed
 
 class Labels(StrEnum):
     MANAGED_BY = 'app.kubernetes.io/managed-by'
-    JOB_ID = 'evmbench.osec.io/job-id'
+    JOB_ID = 'svmbench.osec.io/job-id'
 
 
 P = ParamSpec('P')
@@ -53,7 +53,7 @@ class K8sBackend(BackendABC):
         batch_v1 = client.BatchV1Api()
 
         seen_jobs = {}
-        namespaces = await self._k8s(v1.list_namespace, label_selector=f'{Labels.MANAGED_BY}=evmbench')
+        namespaces = await self._k8s(v1.list_namespace, label_selector=f'{Labels.MANAGED_BY}=svmbench')
         for namespace in namespaces.items:
             created_at = namespace.metadata.creation_timestamp
             job_id = namespace.metadata.labels.get(Labels.JOB_ID)

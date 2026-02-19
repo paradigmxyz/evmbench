@@ -69,7 +69,7 @@ export function AppHeader({
             href="/"
             className="hidden min-[350px]:block shrink-0 font-serif text-xl text-foreground"
           >
-            evmbench
+            svmbench
           </Link>
         ) : (
           center

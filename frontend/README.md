@@ -1,4 +1,4 @@
-# evmbench frontend
+# svmbench frontend
 
 ```
 bun install

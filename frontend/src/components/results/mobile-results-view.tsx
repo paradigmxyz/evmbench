@@ -209,7 +209,7 @@ export function MobileResultsView({
   const [codeSheetOpen, setCodeSheetOpen] = useState(false)
   const [codeSheetFile, setCodeSheetFile] = useState<string | null>(null)
   const [codeSheetLine, setCodeSheetLine] = useState<number | null>(null)
-  const [wordWrap, setWordWrap] = useLocalStorage("evmbench.wordWrap", true)
+  const [wordWrap, setWordWrap] = useLocalStorage("svmbench.wordWrap", true)
 
   const codeViewportRef = useRef<HTMLDivElement>(null)
   const pendingScrollTop = useRef<number | null>(null)

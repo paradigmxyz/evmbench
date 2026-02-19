@@ -35,7 +35,7 @@ LOGS_DIR = Path(os.getenv('LOGS_DIR') or '/home/logs')
 JOB_ID = os.getenv('JOB_ID', 'job').strip()
 MODEL_KEY = os.getenv('AGENT_ID', '').strip()
 
-RUNNER_DIR = Path(os.getenv('EVM_BENCH_RUNNER_DIR') or '/opt/evmbench/worker_runner')
+RUNNER_DIR = Path(os.getenv('SVM_BENCH_RUNNER_DIR') or '/opt/svmbench/worker_runner')
 DETECT_MD_PATH = RUNNER_DIR / 'detect.md'
 MODEL_MAP_PATH = RUNNER_DIR / 'model_map.json'
 CODEX_RUNNER_SH = RUNNER_DIR / 'run_codex_detect.sh'
@@ -184,7 +184,7 @@ def _run_codex_detect(*, openai_token: str, key_mode: str) -> Path:
     model_map = _load_model_map()
     model = _resolve_codex_model(model_key=MODEL_KEY, model_map=model_map)
     env['CODEX_MODEL'] = model
-    env['EVM_BENCH_DETECT_MD'] = str(DETECT_MD_PATH)
+    env['SVM_BENCH_DETECT_MD'] = str(DETECT_MD_PATH)
 
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
     proc = subprocess.run(  # noqa: S603
@@ -266,7 +266,7 @@ async def main() -> None:
         'error': 'No audit generated',
     }
 
-    with tempfile.TemporaryDirectory(prefix='evmbench-worker-') as tmpdir:
+    with tempfile.TemporaryDirectory(prefix='svmbench-worker-') as tmpdir:
         work_dir = Path(tmpdir)
         upload_zip_path, openai_token, key_mode = _unpack_bundle(bundle, work_dir)
 

@@ -3,76 +3,79 @@ import type { Vulnerability } from "@/types"
 export const MOCK_VULNERABILITIES: Vulnerability[] = [
   {
     id: "T-001",
-    title: "Markdown Edge Case Testing",
+    title: "markdown edge case testing",
     severity: "info",
-    summary: `Testing **bold**, *italic*, ~~strikethrough~~, and \`inline code\` in a single paragraph. Also testing [links](https://example.com) and **\`bold code\`**.`,
+    summary: `testing **bold**, *italic*, ~~strikethrough~~, and \`inline code\` in a single paragraph. also testing [links](https://example.com) and **\`bold code\`**.`,
     description: [
       {
-        file: "src/Counter.sol",
+        file: "programs/vault/src/lib.rs",
         line_start: 1,
         line_end: 3,
-        desc: "Test location for markdown testing.",
+        desc: "test location for markdown testing.",
       },
     ],
-    impact: `## Headers Test
+    impact: `## headers test
 
-### H3 Header
-#### H4 Header
-##### H5 Header
+### h3 header
+#### h4 header
+##### h5 header
 
-## Lists Test
+## lists test
 
-Unordered list:
-- Item 1
-- Item 2 with \`inline code\`
-- Item 3 with **bold**
-  - Nested item A
-  - Nested item B
+unordered list:
+- item 1
+- item 2 with \`inline code\`
+- item 3 with **bold**
+  - nested item a
+  - nested item b
 
-Ordered list:
-1. First item
-2. Second item
-3. Third item
-   1. Nested 3.1
-   2. Nested 3.2
+ordered list:
+1. first item
+2. second item
+3. third item
+   1. nested 3.1
+   2. nested 3.2
 
-## Blockquote Test
+## blockquote test
 
-> This is a blockquote
+> this is a blockquote
 > with multiple lines
 >
-> And a second paragraph in the quote
+> and a second paragraph in the quote
 
-## Table Test
+## table test
 
-| Column A | Column B | Column C |
+| column a | column b | column c |
 |----------|----------|----------|
-| Cell 1   | Cell 2   | Cell 3   |
+| cell 1   | cell 2   | cell 3   |
 | \`code\` | **bold** | *italic* |
 
 ---
 
-## Mixed Content
+## mixed content
 
-Here's a paragraph with **bold text**, *italic text*, \`inline code\`, and a [link](https://example.com). Testing **\`bold code\`** and *\`italic code\`*.`,
-    proof_of_concept: `## Code Block Tests
+here's a paragraph with **bold text**, *italic text*, \`inline code\`, and a [link](https://example.com). testing **\`bold code\`** and *\`italic code\`*.`,
+    proof_of_concept: `## code block tests
 
-Code block with language:
+code block with language:
 
-\`\`\`solidity
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+\`\`\`rust
+use anchor_lang::prelude::*;
 
-contract Test {
-    uint256 public value;
-    
-    function setValue(uint256 _value) external {
-        value = _value;
+declare_id!("11111111111111111111111111111111");
+
+#[program]
+pub mod vault {
+    use super::*;
+
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        ctx.accounts.vault.authority = ctx.accounts.authority.key();
+        Ok(())
     }
 }
 \`\`\`
 
-Code block with TypeScript:
+code block with typescript:
 
 \`\`\`typescript
 interface Props {
@@ -85,168 +88,186 @@ const Component = ({ name, value }: Props) => {
 };
 \`\`\`
 
-Code block without language:
+code block without language:
 
 \`\`\`
 plain text code block
 no syntax highlighting
 \`\`\`
 
-Inline code in a sentence: The \`transfer()\` function calls \`_beforeTokenTransfer()\` internally.`,
-    remediation: `## Final Tests
+inline code in a sentence: the \`withdraw()\` function calls \`transfer()\` via cpi internally.`,
+    remediation: `## final tests
 
-### Horizontal Rule
+### horizontal rule
 
-Above the line
+above the line
 
 ---
 
-Below the line
+below the line
 
-### Long Code Line Test
+### long code line test
 
-\`\`\`solidity
-uint256 internal constant VERY_LONG_CONSTANT_NAME_FOR_TESTING_HORIZONTAL_SCROLL = 115792089237316195423570985008687907852837564279074904382605163141518161494337;
+\`\`\`rust
+pub const very_long_constant_name_for_testing_horizontal_scroll: u64 = 18_446_744_073_709_551_615;
 \`\`\`
 
-### Complex Nesting
+### complex nesting
 
-1. **Bold list item** with \`code\`
-   - Nested *italic* item
-   - Another nested item with [link](https://example.com)
-2. Regular item
-   > Blockquote inside list
+1. **bold list item** with \`code\`
+   - nested *italic* item
+   - another nested item with [link](https://example.com)
+2. regular item
+   > blockquote inside list
 
-### End of test`,
+### end of test`,
   },
   {
     id: "H-001",
-    title: "Gauge weights queried with block numbers instead of timestamps",
+    title: "missing signer check allows unauthorized fund withdrawal",
     severity: "high",
-    summary: `\`update_market\` uses **block numbers** as the time parameter for \`gauge_relative_weight_write\`, which expects weekly timestamps. This mismatch makes gauge weights resolve to zero and stops CANTO rewards from accruing.`,
+    summary: `the \`withdraw\` instruction does not verify that the \`authority\` account is a signer, allowing **any user** to drain funds from the vault by passing an arbitrary authority pubkey.`,
     description: [
       {
-        file: "src/Counter.sol",
-        line_start: 7,
-        line_end: 9,
-        desc: "Rewards are computed per epoch derived from block heights and the same block number is passed to gauge_relative_weight_write.",
+        file: "programs/vault/src/lib.rs",
+        line_start: 45,
+        line_end: 58,
+        desc: "the withdraw instruction handler transfers lamports from the vault to the caller without verifying that the authority account has actually signed the transaction.",
       },
       {
-        file: "test/Counter.t.sol",
-        line_start: 10,
-        line_end: 12,
-        desc: "Gauge weights are indexed by weekly timestamps; when provided with a block height, the controller looks up an empty timestamp bucket.",
+        file: "programs/vault/src/lib.rs",
+        line_start: 80,
+        line_end: 92,
+        desc: "the withdraw accounts struct uses `AccountInfo` for the authority field instead of `Signer`, bypassing anchor's automatic signer verification.",
       },
     ],
-    impact: `Every call to \`update_market\` receives a **zero gauge weight**, causing:
+    impact: `any user can call the \`withdraw\` instruction and pass the vault's stored authority pubkey as an unsigned account, because the program never checks \`authority.is_signer\`:
 
-- \`cantoReward\` stays zero
-- \`accCantoPerShare\` never increases
-- Lenders can never claim governance-funded CANTO emissions
+- **all vault funds** can be drained in a single transaction
+- the attacker only needs to know the vault's authority pubkey (which is stored on-chain and publicly readable)
+- no special permissions or setup required`,
+    proof_of_concept: `1. read the vault account data to obtain the stored \`authority\` pubkey
+2. construct a \`withdraw\` instruction passing the authority pubkey as a non-signer account
+3. set the \`recipient\` to the attacker's wallet
+4. submit the transaction — the program transfers all vault lamports to the attacker`,
+    remediation: `use anchor's \`Signer\` type for the authority account to enforce signature verification:
 
-This effectively **locks all rewards** in the contract permanently.`,
-    proof_of_concept: `1. Governance whitelists a market and sets \`cantoPerBlock[epoch] = 1e18\`
-2. Assign the market a positive gauge weight
-3. After many blocks, a user calls \`claim()\`
-4. \`update_market\` computes epoch from \`block.number\`
-5. \`GaugeController\` treats this as a timestamp, rounds it where no points exist
-6. Returns **0** instead of the expected weight`,
-    remediation: `Query gauge weights using **weekly timestamps** rather than block heights:
-
-\`\`\`solidity
-uint256 weekTimestamp = (block.timestamp / WEEK) * WEEK;
-uint256 weight = gaugeController.gauge_relative_weight_write(market, weekTimestamp);
-\`\`\`
-
-Align reward accounting to these timestamps so \`GaugeController\` reads populated weight checkpoints.`,
+\`\`\`rust
+#[derive(Accounts)]
+pub struct Withdraw<'info> {
+    #[account(mut, has_one = authority)]
+    pub vault: Account<'info, Vault>,
+    pub authority: Signer<'info>,  // enforces is_signer check
+    #[account(mut)]
+    /// CHECK: recipient for lamports
+    pub recipient: AccountInfo<'info>,
+}
+\`\`\``,
   },
   {
     id: "H-002",
-    title: "Unchecked return value in token transfer",
+    title: "pda seed collision enables account hijacking",
     severity: "high",
-    summary: `The contract does not check the return value of ERC20 \`transfer\` calls, allowing **silent failures** that can lead to accounting mismatches.`,
+    summary: `the pda derivation for user accounts uses only the user's pubkey as a seed without domain separation between different instruction types, allowing a **seed collision** that lets an attacker hijack another user's account state.`,
     description: [
       {
-        file: "src/Counter.sol",
-        line_start: 11,
-        line_end: 14,
-        desc: "Token transfer return value is not checked, some tokens return false on failure instead of reverting.",
+        file: "programs/marketplace/src/lib.rs",
+        line_start: 30,
+        line_end: 42,
+        desc: "the listing account pda is derived using only `[user.key().as_ref()]` without including a domain prefix like `b\"listing\"`, making it collide with the escrow account pda which uses the same seed pattern.",
+      },
+      {
+        file: "programs/marketplace/src/lib.rs",
+        line_start: 65,
+        line_end: 75,
+        desc: "the escrow account pda also uses `[user.key().as_ref()]` as its only seed, creating an identical derivation to the listing pda for the same user.",
       },
     ],
-    impact: `Users may believe tokens were transferred when they were not, leading to:
+    impact: `because both the listing and escrow pdas derive from the same seeds, they resolve to the **same address**:
 
-- **Loss of funds** for users
-- **Protocol insolvency** due to accounting mismatches
-- Potential for griefing attacks`,
-    proof_of_concept: `1. Deploy with a token that returns \`false\` on failed transfers (e.g., some USDT implementations)
-2. Call \`deposit()\` with insufficient allowance
-3. The transfer fails silently but the user's balance is credited
-4. User can now withdraw more than they deposited`,
-    remediation: `Use OpenZeppelin's \`SafeERC20\` library:
+- a user who creates a listing can have their listing data overwritten when an escrow is initialized
+- funds deposited into escrow can be withdrawn through the listing cancellation flow
+- this effectively allows **theft of escrowed funds** by any user who has both a listing and an escrow`,
+    proof_of_concept: `1. user a creates a listing, which initializes a pda at \`[user_a.key()]\`
+2. user a also creates an escrow — the program attempts to init a pda at the same address
+3. depending on instruction ordering, one account's data overwrites the other
+4. user a can cancel the "listing" to reclaim funds that were actually deposited as escrow`,
+    remediation: `add a unique domain prefix to each pda derivation to ensure no collisions between different account types:
 
-\`\`\`solidity
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+\`\`\`rust
+// listing pda
+#[account(
+    init,
+    payer = user,
+    space = 8 + Listing::INIT_SPACE,
+    seeds = [b"listing", user.key().as_ref()],
+    bump,
+)]
+pub listing: Account<'info, Listing>,
 
-using SafeERC20 for IERC20;
-
-token.safeTransfer(recipient, amount);
-token.safeTransferFrom(sender, recipient, amount);
+// escrow pda (different prefix)
+#[account(
+    init,
+    payer = user,
+    space = 8 + Escrow::INIT_SPACE,
+    seeds = [b"escrow", user.key().as_ref()],
+    bump,
+)]
+pub escrow: Account<'info, Escrow>,
 \`\`\``,
   },
   {
     id: "H-003",
-    title: "Reentrancy in withdrawal function",
+    title: "missing owner check on token account allows draining",
     severity: "high",
-    summary: `State updates occur **after** external calls, allowing malicious contracts to re-enter and drain funds. This is a classic reentrancy vulnerability.`,
+    summary: `the \`claim_rewards\` instruction does not validate the owner of the passed token account, allowing an attacker to substitute a **token account they control** and redirect reward tokens to themselves.`,
     description: [
       {
-        file: "script/Counter.s.sol",
-        line_start: 8,
-        line_end: 14,
-        desc: "External call is made before state is updated, creating a reentrancy window.",
+        file: "programs/staking/src/lib.rs",
+        line_start: 112,
+        line_end: 128,
+        desc: "the reward_destination account is accepted as an unchecked `AccountInfo` and used directly as the destination for a token transfer cpi, without verifying its owner is the token program or that it belongs to the staker.",
       },
     ],
-    impact: `An attacker can recursively call \`withdraw()\` before their balance is set to zero, **draining all contract funds**.
+    impact: `an attacker can pass their own token account as the \`reward_destination\`:
 
-| Attack Step | Balance | Contract ETH |
-|-------------|---------|--------------|
-| Initial | 1 ETH | 10 ETH |
-| 1st withdraw | 1 ETH | 9 ETH |
-| 2nd withdraw (reentrant) | 1 ETH | 8 ETH |
-| ... | ... | ... |
-| Final | 0 ETH | 0 ETH |`,
-    proof_of_concept: `\`\`\`solidity
-contract Attacker {
-    Victim victim;
-    
-    function attack() external payable {
-        victim.deposit{value: 1 ether}();
-        victim.withdraw();
-    }
-    
-    receive() external payable {
-        if (address(victim).balance >= 1 ether) {
-            victim.withdraw(); // Re-enter before balance update
-        }
-    }
+| step | action | result |
+|------|--------|--------|
+| 1 | attacker stakes minimum tokens | gains valid staker pda |
+| 2 | attacker calls claim_rewards with their own token account | rewards sent to attacker |
+| 3 | repeat for each reward epoch | drains all reward tokens |
+
+this results in **theft of all pending reward tokens** from the staking program.`,
+    proof_of_concept: `\`\`\`rust
+// attacker constructs the instruction with their own token account
+let ix = claim_rewards(
+    program_id,
+    staker_pda,           // attacker's valid staker account
+    attacker_token_acct,  // attacker's token account, not the expected one
+    reward_mint,
+    reward_vault,
+);
+// submit — program transfers rewards to attacker's token account
+\`\`\``,
+    remediation: `use anchor's \`Account\` type with a \`token::authority\` constraint to validate the token account:
+
+\`\`\`rust
+#[derive(Accounts)]
+pub struct ClaimRewards<'info> {
+    #[account(has_one = owner)]
+    pub staker: Account<'info, StakerState>,
+    pub owner: Signer<'info>,
+    #[account(
+        mut,
+        token::mint = reward_mint,
+        token::authority = owner,
+    )]
+    pub reward_destination: Account<'info, TokenAccount>,
+    pub reward_mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub reward_vault: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
 }
 \`\`\``,
-    remediation: `Follow the **checks-effects-interactions** pattern:
-
-\`\`\`solidity
-function withdraw() external {
-    uint256 amount = balances[msg.sender];
-    require(amount > 0, "No balance");
-    
-    // Effect: Update state BEFORE external call
-    balances[msg.sender] = 0;
-    
-    // Interaction: External call AFTER state update
-    (bool success, ) = msg.sender.call{value: amount}("");
-    require(success, "Transfer failed");
-}
-\`\`\`
-
-Alternatively, use OpenZeppelin's \`ReentrancyGuard\`.`,
   },
 ]

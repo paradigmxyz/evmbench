@@ -71,7 +71,7 @@ class StartJobForm(BaseModel):
             max_uncompressed_bytes=settings.BACKEND_MAX_ATTACHMENT_UNCOMPRESSED_BYTES,
             max_files=settings.BACKEND_ZIP_MAX_FILES,
             max_ratio=settings.BACKEND_ZIP_MAX_COMPRESSION_RATIO,
-            require_solidity=True,
+            require_rust=True,
         )
 
         return value

@@ -3,9 +3,9 @@ services:
     image: postgres:18.0
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-evmbench}
+      POSTGRES_USER: ${POSTGRES_USER:-svmbench}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-evmbench}
+      POSTGRES_DB: ${POSTGRES_DB:-svmbench}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 2s
@@ -21,7 +21,7 @@ services:
     image: rabbitmq:4.2-management-alpine
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-evmbench}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-svmbench}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD}
     healthcheck:
       test:
@@ -39,7 +39,7 @@ services:
       - mq
 
   secretsvc:
-    image: evmbench/backend:latest
+    image: svmbench/backend:latest
     build:
       dockerfile: docker/backend/Dockerfile
       context: .
@@ -61,7 +61,7 @@ services:
       - shared_network
 
   resultsvc:
-    image: evmbench/backend:latest
+    image: svmbench/backend:latest
     build:
       dockerfile: docker/backend/Dockerfile
       context: .
@@ -72,7 +72,7 @@ services:
     environment:
       RESULTSVC_HOST: 0.0.0.0
       RESULTSVC_PORT: 8083
-      DATABASE_DSN: postgresql+asyncpg://${POSTGRES_USER:-evmbench}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-evmbench}
+      DATABASE_DSN: postgresql+asyncpg://${POSTGRES_USER:-svmbench}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-svmbench}
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,7 +82,7 @@ services:
 
   oai_proxy:
     profiles: ["proxy"]
-    image: evmbench/backend:latest
+    image: svmbench/backend:latest
     build:
       dockerfile: docker/backend/Dockerfile
       context: .
@@ -105,7 +105,7 @@ services:
       app:
 
   backend:
-    image: evmbench/backend:latest
+    image: svmbench/backend:latest
     build:
       dockerfile: docker/backend/Dockerfile
       context: .
@@ -121,11 +121,11 @@ services:
     environment:
       BACKEND_WEB_HOST: 0.0.0.0
       BACKEND_WEB_PORT: 1337
-      DATABASE_DSN: postgresql+asyncpg://${POSTGRES_USER:-evmbench}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-evmbench}
+      DATABASE_DSN: postgresql+asyncpg://${POSTGRES_USER:-svmbench}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-svmbench}
       BACKEND_SECRETS_BACKEND: http
       BACKEND_SECRETS_BACKEND_ARGUMENTS: >
         {"url":"http://secretsvc:8081","token":"${SECRETS_TOKEN_WO:?set SECRETS_TOKEN_WO}"}
-      RABBITMQ_DSN: amqp://${RABBITMQ_USER:-evmbench}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      RABBITMQ_DSN: amqp://${RABBITMQ_USER:-svmbench}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
     ports:
       - "127.0.0.1:${BACKEND_WEB_PORT:-1337}:1337"
     depends_on:
@@ -144,7 +144,7 @@ services:
       - app
 
   instancer:
-    image: evmbench/backend:latest
+    image: svmbench/backend:latest
     build:
       dockerfile: docker/backend/Dockerfile
       context: .
@@ -153,8 +153,8 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_DSN: postgresql+asyncpg://${POSTGRES_USER:-evmbench}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-evmbench}
-      RABBITMQ_DSN: amqp://${RABBITMQ_USER:-evmbench}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      DATABASE_DSN: postgresql+asyncpg://${POSTGRES_USER:-svmbench}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-svmbench}
+      RABBITMQ_DSN: amqp://${RABBITMQ_USER:-svmbench}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
       INSTANCER_WORKERS_BACKEND: docker
       INSTANCER_WORKERS_BACKEND_ARGUMENTS: >
         {"secretsvc_name":"secretsvc","shared_network":"shared_network"}
@@ -183,7 +183,7 @@ services:
 
   prunner:
     profiles: ["cleanup"]
-    image: evmbench/backend:latest
+    image: svmbench/backend:latest
     build:
       dockerfile: docker/backend/Dockerfile
       context: .
@@ -192,10 +192,10 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_DSN: postgresql+asyncpg://${POSTGRES_USER:-evmbench}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-evmbench}
+      DATABASE_DSN: postgresql+asyncpg://${POSTGRES_USER:-svmbench}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-svmbench}
       PRUNNER_BACKEND: docker
       PRUNNER_BACKEND_ARGUMENTS: >
-        {"manager_name":"${MANAGER_NAME:-evmbench-instancer}"}
+        {"manager_name":"${MANAGER_NAME:-svmbench-instancer}"}
     depends_on:
       postgres:
         condition: service_healthy

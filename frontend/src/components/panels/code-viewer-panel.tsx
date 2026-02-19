@@ -46,7 +46,7 @@ export function CodeViewerPanel({
   scrollToLine,
   onAnnotationClick,
 }: CodeViewerPanelProps) {
-  const [wordWrap, setWordWrap] = useLocalStorage("evmbench.wordWrap", true)
+  const [wordWrap, setWordWrap] = useLocalStorage("svmbench.wordWrap", true)
   const [wordWrapTooltipOpen, setWordWrapTooltipOpen] = useState(false)
   const [copyTooltipOpen, setCopyTooltipOpen] = useState(false)
   const viewportRef = useRef<HTMLDivElement>(null)

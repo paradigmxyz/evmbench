@@ -3,7 +3,7 @@ import { bundledLanguages } from "shiki"
 const LANGUAGE_OVERRIDES: Record<string, string> = {
   h: "c",
   hpp: "cpp",
-  sol: "solidity",
+  rs: "rust",
   dockerfile: "docker",
   makefile: "make",
 }
