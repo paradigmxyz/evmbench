@@ -12,5 +12,9 @@ router = APIRouter(prefix='/integration', tags=['integration'])
 async def frontend_config() -> FrontendConfig:
     return FrontendConfig(
         auth_enabled=bool(auth_backend),
-        key_predefined=settings.BACKEND_STATIC_OAI_KEY is not None or settings.BACKEND_USE_PROXY_STATIC_KEY,
+        key_predefined=(
+            settings.BACKEND_STATIC_OAI_KEY is not None
+            or settings.BACKEND_USE_PROXY_STATIC_KEY
+            or settings.BACKEND_CODEX_AUTH_JSON_B64 is not None
+        ),
     )

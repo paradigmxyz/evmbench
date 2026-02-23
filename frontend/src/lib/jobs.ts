@@ -99,7 +99,9 @@ export async function startJob(
   const body = new FormData()
   body.append("file", file)
   body.append("model", model)
-  body.append("openai_key", openaiKey)
+  if (openaiKey.trim().length > 0) {
+    body.append("openai_key", openaiKey)
+  }
 
   const response = await fetch(`${API_BASE}/v1/jobs/start`, {
     method: "POST",

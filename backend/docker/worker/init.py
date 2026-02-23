@@ -69,6 +69,13 @@ def _write_codex_proxy_config(*, home: Path) -> None:
     config_path.write_text(config, encoding='utf-8')
 
 
+def _write_codex_auth_json(*, home: Path, codex_auth_json: str) -> None:
+    config_dir = home / '.codex'
+    config_dir.mkdir(parents=True, exist_ok=True)
+    auth_path = config_dir / 'auth.json'
+    auth_path.write_text(codex_auth_json, encoding='utf-8')
+
+
 def _load_model_map() -> dict[str, str]:
     try:
         data = json.loads(MODEL_MAP_PATH.read_text(encoding='utf-8'))
@@ -90,8 +97,13 @@ def _load_model_map() -> dict[str, str]:
     return model_map
 
 
-def _resolve_codex_model(*, model_key: str, model_map: dict[str, str]) -> str:
+def _resolve_codex_model(*, model_key: str, model_map: dict[str, str], key_mode: str) -> str:
     key = (model_key or '').strip()
+
+    # ChatGPT/Codex account auth should use Codex default model unless explicitly configured.
+    if key_mode == 'codex_auth':
+        return ''
+
     if key and key in model_map:
         return model_map[key]
     if key:
@@ -160,15 +172,28 @@ def _extract_json_payload(audit_md: str) -> dict:
     return _validate_report_payload(payload)
 
 
-def _run_codex_detect(*, openai_token: str, key_mode: str) -> Path:
+def _run_codex_detect(
+    *,
+    openai_token: str | None,
+    key_mode: str,
+    codex_auth_json: str | None,
+) -> Path:
     env = os.environ.copy()
-    env['OPENAI_API_KEY'] = openai_token
-    # Codex CLI supports using CODEX_API_KEY; keep it aligned to avoid surprises.
-    env['CODEX_API_KEY'] = openai_token
+    if key_mode == 'codex_auth':
+        env.pop('OPENAI_API_KEY', None)
+        env.pop('CODEX_API_KEY', None)
+    else:
+        token = openai_token or ''
+        env['OPENAI_API_KEY'] = token
+        # Codex CLI supports using CODEX_API_KEY; keep it aligned to avoid surprises.
+        env['CODEX_API_KEY'] = token
     env['HOME'] = str(AGENT_DIR)
     env['AGENT_DIR'] = str(AGENT_DIR)
     env['SUBMISSION_DIR'] = str(SUBMISSION_DIR)
     env['LOGS_DIR'] = str(LOGS_DIR)
+
+    if codex_auth_json:
+        _write_codex_auth_json(home=AGENT_DIR, codex_auth_json=codex_auth_json)
 
     # Proxy-token mode: write Codex config to route requests through oai_proxy.
     if key_mode in {'proxy', 'proxy_static'}:
@@ -182,8 +207,11 @@ def _run_codex_detect(*, openai_token: str, key_mode: str) -> Path:
         raise RuntimeError(msg)
 
     model_map = _load_model_map()
-    model = _resolve_codex_model(model_key=MODEL_KEY, model_map=model_map)
-    env['CODEX_MODEL'] = model
+    model = _resolve_codex_model(model_key=MODEL_KEY, model_map=model_map, key_mode=key_mode)
+    if model:
+        env['CODEX_MODEL'] = model
+    else:
+        env.pop('CODEX_MODEL', None)
     env['EVM_BENCH_DETECT_MD'] = str(DETECT_MD_PATH)
 
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
@@ -209,7 +237,7 @@ def _run_codex_detect(*, openai_token: str, key_mode: str) -> Path:
     return audit_md_path
 
 
-def _unpack_bundle(bundle: bytes, work_dir: Path) -> tuple[Path, str, str]:
+def _unpack_bundle(bundle: bytes, work_dir: Path) -> tuple[Path, str | None, str, str | None]:  # noqa: C901
     upload_zip_path = work_dir / 'upload.zip'
     key_payload: dict | None = None
 
@@ -232,21 +260,32 @@ def _unpack_bundle(bundle: bytes, work_dir: Path) -> tuple[Path, str, str]:
 
     openai_token = key_payload.get('openai_token') or key_payload.get('openai_key')
     if not isinstance(openai_token, str) or not openai_token:
-        msg = 'Missing openai_token in bundle'
-        raise RuntimeError(msg)
+        openai_token = None
+
+    codex_auth_json = key_payload.get('codex_auth_json')
+    if not isinstance(codex_auth_json, str) or not codex_auth_json:
+        codex_auth_json = None
 
     key_mode = key_payload.get('key_mode') or 'direct'
     if not isinstance(key_mode, str):
         key_mode = 'direct'
     key_mode = key_mode.strip().lower()
-    if key_mode not in {'direct', 'proxy', 'proxy_static'}:
+    if key_mode not in {'direct', 'proxy', 'proxy_static', 'codex_auth'}:
         key_mode = 'direct'
+
+    if key_mode == 'codex_auth' and codex_auth_json is None:
+        msg = 'Missing codex_auth_json in bundle for codex_auth mode'
+        raise RuntimeError(msg)
+
+    if key_mode != 'codex_auth' and openai_token is None:
+        msg = 'Missing openai_token in bundle'
+        raise RuntimeError(msg)
 
     if not upload_zip_path.exists():
         msg = 'Missing upload.zip in bundle'
         raise RuntimeError(msg)
 
-    return upload_zip_path, openai_token, key_mode
+    return upload_zip_path, openai_token, key_mode, codex_auth_json
 
 
 async def main() -> None:
@@ -268,7 +307,7 @@ async def main() -> None:
 
     with tempfile.TemporaryDirectory(prefix='evmbench-worker-') as tmpdir:
         work_dir = Path(tmpdir)
-        upload_zip_path, openai_token, key_mode = _unpack_bundle(bundle, work_dir)
+        upload_zip_path, openai_token, key_mode, codex_auth_json = _unpack_bundle(bundle, work_dir)
 
         if AUDIT_DIR.exists():
             shutil.rmtree(AUDIT_DIR)
@@ -279,7 +318,11 @@ async def main() -> None:
 
         logger.info('Extracted the bundle, running detect-only agent...')
         try:
-            audit_md = _run_codex_detect(openai_token=openai_token, key_mode=key_mode)
+            audit_md = _run_codex_detect(
+                openai_token=openai_token,
+                key_mode=key_mode,
+                codex_auth_json=codex_auth_json,
+            )
             audit_text = audit_md.read_text()
             _extract_json_payload(audit_text)
 

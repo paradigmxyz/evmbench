@@ -31,6 +31,18 @@ Proxy-token mode (optional):
 docker compose --profile proxy up -d --build
 ```
 
+ChatGPT/Codex subscription mode (optional):
+
+```bash
+# Authenticate Codex once on the host
+codex login --device-auth
+
+# Put the base64-encoded auth file into backend/.env
+# BACKEND_CODEX_AUTH_JSON_B64=$(base64 -w0 ~/.codex/auth.json)
+
+docker compose up -d --build
+```
+
 ## k8s development
 ```bash
 # install kind from https://kind.sigs.k8s.io/docs/user/quick-start/

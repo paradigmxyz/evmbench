@@ -149,8 +149,8 @@ export default function Page() {
                   </p>
                   <p className="leading-tight">
                     This interface focuses on detection and only reports
-                    high-severity findings. Upload a contract folder, provide an
-                    API key, and start a run.
+                    high-severity findings. Upload a contract folder, configure
+                    credentials if needed, and start a run.
                   </p>
                   <div className="flex flex-col items-start gap-0.5">
                     <a
@@ -195,22 +195,49 @@ export default function Page() {
               />
 
               <div className="grid gap-3 text-xs text-muted-foreground">
-                {!isConfigLoading && !keyPredefined && (
-                  <div className="grid gap-1">
-                    <Label
-                      htmlFor="openai-key"
-                      className="text-xs text-foreground"
-                    >
-                      OpenAI API Key
-                    </Label>
-                    <Input
-                      id="openai-key"
-                      type="password"
-                      placeholder="sk-&hellip;"
-                      value={openaiKey}
-                      onChange={handleKeyChange}
-                    />
-                  </div>
+                {!isConfigLoading && (
+                  <>
+                    <div className="grid gap-1">
+                      <Label
+                        htmlFor="openai-key"
+                        className="text-xs text-foreground"
+                      >
+                        OpenAI API Key
+                      </Label>
+                      <Input
+                        id="openai-key"
+                        type="password"
+                        placeholder="sk-&hellip;"
+                        value={openaiKey}
+                        onChange={handleKeyChange}
+                      />
+                    </div>
+                    {keyPredefined && (
+                      <p className="text-[11px] text-muted-foreground">
+                        API key is optional on this deployment. Leave blank to
+                        use preconfigured credentials.
+                      </p>
+                    )}
+                    <details className="rounded-md border border-border/60 bg-muted/20 px-2 py-1.5">
+                      <summary className="cursor-pointer text-[11px] text-foreground">
+                        Connect a ChatGPT/Codex subscription (self-hosted)
+                      </summary>
+                      <div className="mt-1.5 space-y-1 text-[11px] text-muted-foreground">
+                        <p>For backend admins:</p>
+                        <ol className="list-decimal space-y-0.5 pl-4">
+                          <li>
+                            Run <code>codex login --device-auth</code>.
+                          </li>
+                          <li>
+                            Put <code>base64 -w0 ~/.codex/auth.json</code> in
+                            <code>BACKEND_CODEX_AUTH_JSON_B64</code> inside
+                            <code>backend/.env</code>.
+                          </li>
+                          <li>Restart backend and worker images.</li>
+                        </ol>
+                      </div>
+                    </details>
+                  </>
                 )}
                 <div className="grid gap-1">
                   <Label

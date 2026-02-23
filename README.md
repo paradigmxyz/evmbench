@@ -62,6 +62,7 @@ OpenAI credential handling:
 
 - **Direct BYOK (default)**: worker receives a plaintext OpenAI key (`OPENAI_API_KEY` / `CODEX_API_KEY`).
 - **Proxy-token mode (optional)**: worker receives an opaque token and routes requests through `oai_proxy` (plaintext key stays outside the worker).
+- **ChatGPT/Codex device-auth mode (optional)**: backend stores a base64-encoded `~/.codex/auth.json` and workers use that auth instead of per-request API keys.
 
 Enabling proxy-token mode:
 
@@ -70,6 +71,16 @@ cd backend
 cp .env.example .env
 # set BACKEND_OAI_KEY_MODE=proxy and OAI_PROXY_AES_KEY=...
 docker compose --profile proxy up -d --build
+```
+
+Enabling ChatGPT/Codex device-auth mode:
+
+```bash
+cd backend
+cp .env.example .env
+codex login --device-auth
+# set BACKEND_CODEX_AUTH_JSON_B64 to: base64 -w0 ~/.codex/auth.json
+docker compose up -d --build
 ```
 
 Operational note: worker runtime is bounded by default; override the max audit runtime with `EVM_BENCH_CODEX_TIMEOUT_SECONDS` (default: 10800 seconds).

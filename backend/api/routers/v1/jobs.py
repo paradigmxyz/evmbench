@@ -1,3 +1,5 @@
+import base64
+import json
 import os
 import uuid
 from contextlib import suppress
@@ -80,11 +82,30 @@ def _resolve_openai_key(form: StartJobForm) -> str | None:
     return static_key or form.openai_key
 
 
-async def _maybe_validate_user_key(*, form: StartJobForm, openai_key: str | None) -> None:
-    # Validate user-provided keys (skip if using static keys)
+def _resolve_codex_auth_json() -> str | None:
+    raw = settings.BACKEND_CODEX_AUTH_JSON_B64
+    if raw is None:
+        return None
+
+    try:
+        decoded = base64.b64decode(raw.get_secret_value()).decode('utf-8')
+        payload = json.loads(decoded)
+    except Exception as err:
+        raise HTTPException(status_code=500, detail='Invalid BACKEND_CODEX_AUTH_JSON_B64') from err
+
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=500, detail='Invalid BACKEND_CODEX_AUTH_JSON_B64 payload')
+
+    return decoded
+
+
+async def _maybe_validate_user_key(*, form: StartJobForm, openai_key: str | None, use_codex_auth: bool) -> None:
+    # Validate user-provided keys (skip if using static keys/device-auth)
     if settings.BACKEND_USE_PROXY_STATIC_KEY:
         return
     if settings.BACKEND_STATIC_OAI_KEY is not None:
+        return
+    if use_codex_auth:
         return
     if not form.openai_key:
         return
@@ -102,11 +123,24 @@ async def _maybe_validate_user_key(*, form: StartJobForm, openai_key: str | None
             raise HTTPException(status_code=401, detail='Invalid API key')
 
 
-def _encode_openai_token(*, openai_key: str, use_proxy_static: bool, use_proxy_tokens: bool) -> tuple[str, str]:
+def _encode_openai_token(
+    *,
+    openai_key: str | None,
+    use_proxy_static: bool,
+    use_proxy_tokens: bool,
+    use_codex_auth: bool,
+) -> tuple[str, str]:
     """Return (openai_token, key_mode) for the worker bundle."""
+    if use_codex_auth:
+        # Placeholder token; worker will use codex auth.json instead of API key login.
+        return 'CHATGPT_SUB', 'codex_auth'
+
     if use_proxy_static:
         # Marker token (not a real credential). The proxy substitutes its static key.
         return 'STATIC', 'proxy_static'
+
+    if openai_key is None:
+        raise HTTPException(status_code=412, detail='openai_key is required')
 
     if use_proxy_tokens:
         if settings.OAI_PROXY_AES_KEY is None:
@@ -134,25 +168,33 @@ async def start_job(
 
     use_proxy_static = settings.BACKEND_USE_PROXY_STATIC_KEY
     use_proxy_tokens = settings.BACKEND_OAI_KEY_MODE == 'proxy'
+    codex_auth_json = _resolve_codex_auth_json()
+    use_codex_auth = codex_auth_json is not None
     openai_key = _resolve_openai_key(form)
 
-    if not use_proxy_static and not openai_key:
+    if not use_proxy_static and not use_codex_auth and not openai_key:
         raise HTTPException(status_code=412, detail='openai_key is required')
 
-    await _maybe_validate_user_key(form=form, openai_key=openai_key)
+    await _maybe_validate_user_key(form=form, openai_key=openai_key, use_codex_auth=use_codex_auth)
 
     job_id = uuid.uuid4()
     secret_ref = os.urandom(32).hex()
     result_token = os.urandom(32).hex()
 
     openai_token, key_mode = _encode_openai_token(
-        openai_key=openai_key or '',
+        openai_key=openai_key,
         use_proxy_static=use_proxy_static,
         use_proxy_tokens=use_proxy_tokens,
+        use_codex_auth=use_codex_auth,
     )
 
     try:
-        bundle = build_secret_bundle(upload=form.file, openai_token=openai_token, key_mode=key_mode)
+        bundle = build_secret_bundle(
+            upload=form.file,
+            openai_token=openai_token,
+            key_mode=key_mode,
+            codex_auth_json=codex_auth_json,
+        )
         await secret_storage.save_secret(secret_ref, bundle)
 
         job = Job(

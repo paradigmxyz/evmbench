@@ -45,10 +45,15 @@ class StartJobForm(BaseModel):
 
     @model_validator(mode='after')
     def require_openai_key(self) -> 'StartJobForm':
-        # Skip validation if using proxy's static key or backend's static key
+        # Skip validation if using proxy/static backend credentials.
         if settings.BACKEND_USE_PROXY_STATIC_KEY:
             return self
-        if settings.BACKEND_STATIC_OAI_KEY is None and not self.openai_key:
+        if settings.BACKEND_STATIC_OAI_KEY is not None:
+            return self
+        if settings.BACKEND_CODEX_AUTH_JSON_B64 is not None:
+            return self
+
+        if not self.openai_key:
             msg = 'openai_key is required'
             raise ValueError(msg)
         return self

@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     BACKEND_OAI_KEY_MODE: Literal['direct', 'proxy'] = 'direct'
 
     BACKEND_STATIC_OAI_KEY: Secret[str] | None = None
+    # Optional base64-encoded ~/.codex/auth.json content for ChatGPT/Codex device-auth mode.
+    # When set, workers can authenticate Codex without user-provided OpenAI API keys.
+    BACKEND_CODEX_AUTH_JSON_B64: Secret[str] | None = None
     # When true, use the proxy's static key (sends "STATIC" marker instead of encrypted key)
     # The real OpenAI key is only known by oai_proxy, never exposed to backend or agents
     BACKEND_USE_PROXY_STATIC_KEY: bool = False
