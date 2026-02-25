@@ -10,8 +10,8 @@ from starlette.responses import StreamingResponse
 from api.util.aes_gcm import decrypt_token, derive_key
 from oai_proxy.core.config import settings
 
-
-OPENAI_BASE_URL = 'https://api.openai.com'
+# Upstream base URL: set OAI_PROXY_OPENAI_BASE_URL env (default https://api.openai.com)
+OPENAI_BASE_URL = (settings.OAI_PROXY_OPENAI_BASE_URL or '').rstrip('/') or 'https://api.openai.com'
 # Marker token that triggers use of the static key
 STATIC_KEY_MARKER = 'STATIC'
 HOP_BY_HOP_HEADERS = {

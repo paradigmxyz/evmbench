@@ -127,6 +127,7 @@ celerybeat.pid
 
 # Environments
 .env
+.env.production.local
 .venv
 venv/
 ENV/
@@ -174,3 +175,5 @@ records/
 .data/
 data/
 .env
+
+private

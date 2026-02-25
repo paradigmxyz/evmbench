@@ -96,6 +96,8 @@ services:
       OAI_PROXY_PORT: 8084
       # Required only when running with profile "proxy"
       OAI_PROXY_AES_KEY: ${OAI_PROXY_AES_KEY:-}
+      # Upstream API base URL (default https://api.openai.com)
+      OAI_PROXY_OPENAI_BASE_URL: ${OAI_PROXY_OPENAI_BASE_URL:-https://api.openai.com}
     ports:
       - "127.0.0.1:8084:8084"
     networks:

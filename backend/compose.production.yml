@@ -1,0 +1,35 @@
+# Production override: use pre-built image from registry (no local build).
+# Usage on EC2:
+#   export DOCKER_IMAGE=docker.io/YOUR_DOCKERHUB_USER/evmbench-backend:latest
+#   docker compose -f compose.yml -f compose.production.yml --profile proxy --profile cleanup up -d
+#
+# Pass secrets at runtime (do not put in .env on disk):
+#   export OAI_PROXY_AES_KEY='...'
+#   export OAI_PROXY_STATIC_KEY='sk-...'
+#   export POSTGRES_PASSWORD='...'
+#   ... then docker compose up
+
+services:
+  secretsvc:
+    image: ${DOCKER_IMAGE:?set DOCKER_IMAGE e.g. docker.io/owner/evmbench-backend:latest}
+    build: ~
+
+  resultsvc:
+    image: ${DOCKER_IMAGE}
+    build: ~
+
+  oai_proxy:
+    image: ${DOCKER_IMAGE}
+    build: ~
+
+  backend:
+    image: ${DOCKER_IMAGE}
+    build: ~
+
+  instancer:
+    image: ${DOCKER_IMAGE}
+    build: ~
+
+  prunner:
+    image: ${DOCKER_IMAGE}
+    build: ~
