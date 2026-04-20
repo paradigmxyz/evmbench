@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     OAI_PROXY_PORT: int = 8084
     OAI_PROXY_WORKERS: int = 1
     OAI_PROXY_AES_KEY: Secret[str]
+    OAI_PROXY_UPSTREAM_BASE_URL: str = 'https://api.openai.com'
+    OAI_PROXY_STRIP_WEB_SEARCH: bool = False
     # Static OpenAI key - when set, requests with "Bearer STATIC" use this key
     # The real key never leaves this service
     OAI_PROXY_STATIC_KEY: Secret[str] | None = None

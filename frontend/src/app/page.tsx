@@ -34,7 +34,7 @@ export default function Page() {
   const router = useRouter()
   const { files, packageName, setUpload, clearUpload } = useUploadStore()
   const [openaiKey, setOpenaiKey] = useSessionStorage("evmbench.openaiKey", "")
-  const [model, setModel] = useState("codex-gpt-5.2")
+  const [model, setModel] = useState("gpt-oss-120b")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [recentJobs, setRecentJobs] = useLocalStorage<RecentJob[]>(
@@ -149,8 +149,8 @@ export default function Page() {
                   </p>
                   <p className="leading-tight">
                     This interface focuses on detection and only reports
-                    high-severity findings. Upload a contract folder, provide an
-                    API key, and start a run.
+                    high-severity findings. Upload a contract folder and start
+                    a run against the local gpt-oss-120b backend.
                   </p>
                   <div className="flex flex-col items-start gap-0.5">
                     <a
@@ -201,7 +201,7 @@ export default function Page() {
                       htmlFor="openai-key"
                       className="text-xs text-foreground"
                     >
-                      OpenAI API Key
+                      API Key
                     </Label>
                     <Input
                       id="openai-key"
@@ -224,11 +224,8 @@ export default function Page() {
                       <SelectValue placeholder="Select model" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="codex-gpt-5.2">
-                        codex-gpt-5.2
-                      </SelectItem>
-                      <SelectItem value="codex-gpt-5.1-codex-max">
-                        codex-gpt-5.1-codex-max
+                      <SelectItem value="gpt-oss-120b">
+                        gpt-oss-120b
                       </SelectItem>
                     </SelectContent>
                   </Select>

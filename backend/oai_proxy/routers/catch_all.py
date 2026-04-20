@@ -1,3 +1,4 @@
+import json
 from collections.abc import Iterable
 from functools import lru_cache
 from urllib.parse import quote
@@ -11,7 +12,6 @@ from api.util.aes_gcm import decrypt_token, derive_key
 from oai_proxy.core.config import settings
 
 
-OPENAI_BASE_URL = 'https://api.openai.com'
 # Marker token that triggers use of the static key
 STATIC_KEY_MARKER = 'STATIC'
 HOP_BY_HOP_HEADERS = {
@@ -87,6 +87,40 @@ def _filter_headers(items: Iterable[tuple[str, str]]) -> dict[str, str]:
     return headers
 
 
+def _target_base_url() -> str:
+    return settings.OAI_PROXY_UPSTREAM_BASE_URL.rstrip('/')
+
+
+def _should_strip_web_search(*, method: str, path: str) -> bool:
+    if not settings.OAI_PROXY_STRIP_WEB_SEARCH:
+        return False
+    if method.upper() != 'POST':
+        return False
+    normalized_path = path.strip('/').rstrip('/')
+    return normalized_path in {'responses', 'v1/responses'}
+
+
+async def _forward_body(request: Request, *, path: str) -> bytes | Iterable[bytes]:
+    if not _should_strip_web_search(method=request.method, path=path):
+        return request.stream()
+
+    try:
+        payload = await request.json()
+    except json.JSONDecodeError:
+        return await request.body()
+
+    if not isinstance(payload, dict):
+        return await request.body()
+
+    tools = payload.get('tools')
+    if isinstance(tools, list):
+        payload['tools'] = [
+            tool for tool in tools if not isinstance(tool, dict) or tool.get('type') != 'web_search'
+        ]
+
+    return json.dumps(payload).encode('utf-8')
+
+
 async def _proxy_request(request: Request, path: str) -> StreamingResponse:
     token = _get_authorization_token(request)
     openai_key = _resolve_openai_key(token)
@@ -95,9 +129,10 @@ async def _proxy_request(request: Request, path: str) -> StreamingResponse:
 
     target_path = path.lstrip('/')
     encoded_path = quote(target_path, safe='/')
-    target_url = f'{OPENAI_BASE_URL}/{encoded_path}' if encoded_path else OPENAI_BASE_URL
+    base_url = _target_base_url()
+    target_url = f'{base_url}/{encoded_path}' if encoded_path else base_url
 
-    body = request.stream()
+    body = await _forward_body(request, path=target_path)
     params = request.query_params
 
     client = httpx.AsyncClient(timeout=httpx.Timeout(60.0, read=None))

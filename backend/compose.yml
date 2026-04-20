@@ -98,6 +98,8 @@ services:
       OAI_PROXY_AES_KEY: ${OAI_PROXY_AES_KEY:-}
     ports:
       - "127.0.0.1:8084:8084"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       shared_network:
         aliases:
