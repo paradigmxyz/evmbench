@@ -39,7 +39,6 @@ contract Vault {
         uint256 bal = balanceOf[msg.sender];
         require(bal >= amount, "INSUFFICIENT");
 
-        // VULNERABLE: interaction before effect update.
         (bool ok, ) = payable(msg.sender).call{value: amount}("");
         require(ok, "SEND_FAIL");
 
