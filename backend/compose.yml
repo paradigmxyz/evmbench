@@ -24,14 +24,10 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-evmbench}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD}
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_local_alarms"
-        ]
-      interval: 2s
-      timeout: 5s
-      retries: 40
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 5672"]
+      interval: 30s
+      timeout: 3s
+      retries: 10
       start_period: 10s
     volumes:
       - ./.data/rabbitmq:/var/lib/rabbitmq/
@@ -129,7 +125,7 @@ services:
         {"url":"http://secretsvc:8081","token":"${SECRETS_TOKEN_WO:?set SECRETS_TOKEN_WO}"}
       RABBITMQ_DSN: amqp://${RABBITMQ_USER:-evmbench}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
     ports:
-      - "127.0.0.1:${BACKEND_WEB_PORT:-1337}:1337"
+      - "${BACKEND_WEB_PORT:-1337}:1337"
     depends_on:
       postgres:
         condition: service_healthy
