@@ -31,6 +31,11 @@ Proxy-token mode (optional):
 docker compose --profile proxy up -d --build
 ```
 
+The OpenAI-compatible proxy can cache non-streaming model responses by exact request body.
+This is enabled by default in compose for the `oai_proxy` service and stores entries in
+`.data/oai_proxy_cache/response_cache.sqlite3`. Set `OAI_PROXY_RESPONSE_CACHE_ENABLED=false`
+to disable it, or send `Cache-Control: no-store` on a request to bypass it.
+
 ## k8s development
 ```bash
 # install kind from https://kind.sigs.k8s.io/docs/user/quick-start/

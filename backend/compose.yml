@@ -92,8 +92,15 @@ services:
       OAI_PROXY_PORT: 8084
       # Required only when running with profile "proxy"
       OAI_PROXY_AES_KEY: ${OAI_PROXY_AES_KEY:-}
+      OAI_PROXY_RESPONSE_CACHE_ENABLED: ${OAI_PROXY_RESPONSE_CACHE_ENABLED:-true}
+      OAI_PROXY_RESPONSE_CACHE_DIR: /app/.data/oai_proxy_cache
+      OAI_PROXY_RESPONSE_CACHE_TTL_SECONDS: ${OAI_PROXY_RESPONSE_CACHE_TTL_SECONDS:-0}
+      OAI_PROXY_RESPONSE_CACHE_MAX_ENTRY_BYTES: ${OAI_PROXY_RESPONSE_CACHE_MAX_ENTRY_BYTES:-33554432}
+      OAI_PROXY_RESPONSE_CACHE_MAX_ENTRIES: ${OAI_PROXY_RESPONSE_CACHE_MAX_ENTRIES:-4096}
     ports:
       - "127.0.0.1:8084:8084"
+    volumes:
+      - ./.data/oai_proxy_cache:/app/.data/oai_proxy_cache
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
