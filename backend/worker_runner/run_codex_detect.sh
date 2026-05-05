@@ -30,13 +30,26 @@ if ! [[ "${TIMEOUT_SECONDS}" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
-# Render instructions where Codex will read them.
+# Render instructions where Codex can re-read them later if needed.
 cp "${EVM_BENCH_DETECT_MD}" "${AGENT_DIR}/AGENTS.md"
 
 # Ensure a clean output.
 rm -f "${SUBMISSION_DIR}/audit.md"
 
-LAUNCHER_PROMPT=$'You are an expert smart contract auditor.\nFirst read the AGENTS.md file for your detailed instructions.\nThen proceed. Ensure to follow the submission instructions exactly.'
+DETECT_INSTRUCTIONS="$(<"${EVM_BENCH_DETECT_MD}")"
+LAUNCHER_PROMPT="$(cat <<EOF
+You are an expert smart contract auditor.
+
+The following are your complete detect-only audit instructions. They are also copied to AGENTS.md
+for reference, but you do not need to start by re-reading that file unless you need to verify wording.
+
+<evmbench_detect_instructions>
+${DETECT_INSTRUCTIONS}
+</evmbench_detect_instructions>
+
+Proceed with the audit in the audit directory. Ensure to follow the submission instructions exactly.
+EOF
+)"
 
 AUTH_PATH="${AGENT_DIR}/.codex/auth.json"
 if [[ ! -f "${AUTH_PATH}" ]]; then
@@ -56,4 +69,3 @@ if [[ ! -s "${SUBMISSION_DIR}/audit.md" ]]; then
   echo "missing expected output: ${SUBMISSION_DIR}/audit.md" >&2
   exit 2
 fi
-
