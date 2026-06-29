@@ -224,6 +224,12 @@ export default function Page() {
                       <SelectValue placeholder="Select model" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="codex-gpt-5.4">
+                        codex-gpt-5.4
+                      </SelectItem>
+                      <SelectItem value="codex-gpt-5.3-codex">
+                        codex-gpt-5.3-codex
+                      </SelectItem>
                       <SelectItem value="codex-gpt-5.2">
                         codex-gpt-5.2
                       </SelectItem>
