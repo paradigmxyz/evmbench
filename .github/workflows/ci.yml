@@ -23,6 +23,10 @@ jobs:
         working-directory: backend
         run: uv run ruff check .
 
+      - name: Tests
+        working-directory: backend
+        run: uv run pytest
+
       - name: Python syntax check
         working-directory: backend
         run: |

@@ -27,6 +27,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pytest>=9.1.1",
     "ruff>=0.14.14",
     "ty>=0.0.14",
     "tzdata>=2025.3",
@@ -55,7 +56,11 @@ lines-after-imports = 2
 combine-as-imports = false
 
 [tool.ruff.lint.extend-per-file-ignores]
+"tests/**/*.py" = ["S101"]
 ## Legacy paths intentionally removed from OSS release.
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
 
 [tool.ty]
 src.exclude = []
