@@ -6,11 +6,44 @@
 
 **evmbench is a benchmark and agent harness for finding and exploiting smart contract bugs.**
 
-<a href="#how-it-works"><b><u>How it works</u></b></a> | <a href="#security"><b><u>Security</u></b></a> | <a href="#key-services"><b><u>Key services</u></b></a> | <a href="#repo-layout"><b><u>Repo layout</u></b></a> | <a href="#quickstart-local-dev"><b><u>Quickstart (local dev)</u></b></a>
+<a href="#how-it-works"><b><u>How it works</u></b></a> | <a href="#github-action"><b><u>GitHub Action</u></b></a> | <a href="#security"><b><u>Security</u></b></a> | <a href="#key-services"><b><u>Key services</u></b></a> | <a href="#quickstart-local-dev"><b><u>Quickstart (local dev)</u></b></a>
 
 This repository contains a companion interface to the `evmbench` detect evaluation ([code](https://github.com/openai/frontier-evals)). For reference, we include the evaluation code as a pinned submodule at `frontier-evals/`.
 
 Upload contract source code, select an agent, and receive a structured vulnerability report rendered in the UI.
+
+## GitHub Action
+
+Use the bundled action to run an evmbench-style Codex audit on Solidity pull requests and post the report as a PR comment:
+
+```yaml
+name: evmbench audit
+
+on:
+  pull_request:
+    paths:
+      - "**/*.sol"
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: paradigmxyz/evmbench@main
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+```
+
+The action wraps `openai/codex-action`, audits changed Solidity files by default, validates the JSON report, renders `evmbench-audit.md`, and updates a single marked PR comment. Configure `paths`, `changed-only`, `model`, `effort`, `output-json-file`, `output-markdown-file`, `comment-on-pr`, and `fail-on-findings` as needed. Use `pull_request`, not `pull_request_target`, unless you have separately reviewed the secret-exposure risk for untrusted forks.
 
 
 ## How it works

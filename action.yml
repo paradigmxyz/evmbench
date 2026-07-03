@@ -1,0 +1,189 @@
+name: evmbench audit
+description: Run an evmbench-style Codex audit on Solidity changes and optionally comment on a pull request.
+
+inputs:
+  openai-api-key:
+    description: OpenAI Platform API key stored as a GitHub Actions secret.
+    required: true
+  model:
+    description: Codex model to use for the audit.
+    default: gpt-5.5
+  effort:
+    description: Reasoning effort to pass to Codex.
+    default: high
+  paths:
+    description: Newline-separated git pathspecs to audit.
+    default: ":(glob)**/*.sol"
+  changed-only:
+    description: Audit only changed files when a base and head ref are available.
+    default: "true"
+  base-ref:
+    description: Optional base ref or SHA for changed-only mode.
+    default: ""
+  head-ref:
+    description: Optional head ref or SHA for changed-only mode.
+    default: ""
+  output-json-file:
+    description: Normalized JSON report file written after validation.
+    default: evmbench-report.json
+  output-markdown-file:
+    description: Markdown file rendered from the validated JSON report.
+    default: evmbench-audit.md
+  comment-on-pr:
+    description: Create or update a pull request comment when running on pull_request events.
+    default: "true"
+  fail-on-findings:
+    description: Fail the workflow when the validated report contains findings.
+    default: "false"
+  github-token:
+    description: Optional token for posting PR comments. Defaults to github.token.
+    default: ""
+  safety-strategy:
+    description: Safety strategy passed to openai/codex-action.
+    default: drop-sudo
+  codex-version:
+    description: Optional @openai/codex version passed to openai/codex-action.
+    default: ""
+  extra-prompt:
+    description: Additional audit instructions appended to the generated prompt.
+    default: ""
+
+outputs:
+  final-message:
+    description: Final raw message returned by Codex before validation.
+    value: ${{ steps.run_codex.outputs.final-message }}
+  has-files:
+    description: Whether any files matched the audit scope.
+    value: ${{ steps.collect.outputs.has-files }}
+  files-count:
+    description: Number of files included in the audit prompt.
+    value: ${{ steps.collect.outputs.files-count }}
+  files-file:
+    description: Path to the file list used by the audit prompt.
+    value: ${{ steps.collect.outputs.files-file }}
+  report-json-file:
+    description: Path to the normalized JSON report.
+    value: ${{ steps.validate.outputs.report-json-file }}
+  comment-file:
+    description: Path to the rendered Markdown comment.
+    value: ${{ steps.render.outputs.comment-file }}
+  findings-count:
+    description: Number of validated findings.
+    value: ${{ steps.validate.outputs.findings-count }}
+  has-findings:
+    description: Whether the validated report contains findings.
+    value: ${{ steps.validate.outputs.has-findings }}
+
+runs:
+  using: composite
+  steps:
+    - name: Collect audit files
+      id: collect
+      shell: bash
+      env:
+        INPUT_PATHS: ${{ inputs.paths }}
+        INPUT_CHANGED_ONLY: ${{ inputs.changed-only }}
+        INPUT_BASE_REF: ${{ inputs.base-ref }}
+        INPUT_HEAD_REF: ${{ inputs.head-ref }}
+        EVENT_NAME: ${{ github.event_name }}
+        PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        BEFORE_SHA: ${{ github.event.before }}
+        CURRENT_SHA: ${{ github.sha }}
+      run: ${{ github.action_path }}/actions/evmbench-audit/collect-files.sh
+
+    - name: Build audit prompt
+      if: steps.collect.outputs.has-files == 'true'
+      id: prompt
+      shell: bash
+      env:
+        FILES_FILE: ${{ steps.collect.outputs.files-file }}
+        EXTRA_PROMPT: ${{ inputs.extra-prompt }}
+      run: ${{ github.action_path }}/actions/evmbench-audit/build-prompt.sh
+
+    - name: Run Codex audit
+      if: steps.collect.outputs.has-files == 'true'
+      id: run_codex
+      uses: openai/codex-action@v1
+      with:
+        openai-api-key: ${{ inputs.openai-api-key }}
+        prompt-file: ${{ steps.prompt.outputs.prompt-file }}
+        output-file: ${{ runner.temp }}/evmbench-raw-report.md
+        model: ${{ inputs.model }}
+        effort: ${{ inputs.effort }}
+        safety-strategy: ${{ inputs.safety-strategy }}
+        codex-version: ${{ inputs.codex-version }}
+
+    - name: Validate JSON report
+      if: steps.collect.outputs.has-files == 'true'
+      id: validate
+      shell: bash
+      run: >-
+        python3 "$GITHUB_ACTION_PATH/actions/evmbench-audit/validate-report.py"
+        --input "${{ runner.temp }}/evmbench-raw-report.md"
+        --output "${{ inputs.output-json-file }}"
+
+    - name: Render pull request comment
+      if: steps.collect.outputs.has-files == 'true'
+      id: render
+      shell: bash
+      env:
+        FILES_FILE: ${{ steps.collect.outputs.files-file }}
+      run: >-
+        python3 "$GITHUB_ACTION_PATH/actions/evmbench-audit/render-comment.py"
+        --input "${{ inputs.output-json-file }}"
+        --output "${{ inputs.output-markdown-file }}"
+        --files-file "$FILES_FILE"
+
+    - name: Comment on pull request
+      if: >-
+        steps.collect.outputs.has-files == 'true' &&
+        inputs.comment-on-pr == 'true' &&
+        github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      env:
+        OUTPUT_FILE: ${{ inputs.output-markdown-file }}
+        COMMENT_MARKER: "<!-- evmbench-audit -->"
+      with:
+        github-token: ${{ inputs.github-token || github.token }}
+        script: |
+          const fs = require("node:fs");
+
+          const outputFile = process.env.OUTPUT_FILE;
+          const marker = process.env.COMMENT_MARKER;
+          const body = `${marker}\n${fs.readFileSync(outputFile, "utf8").trim()}\n`;
+          const { owner, repo } = context.repo;
+          const issue_number = context.payload.pull_request.number;
+          const comments = await github.paginate(github.rest.issues.listComments, {
+            owner,
+            repo,
+            issue_number,
+            per_page: 100,
+          });
+          const existing = comments.find((comment) => comment.body?.includes(marker));
+
+          if (existing) {
+            await github.rest.issues.updateComment({
+              owner,
+              repo,
+              comment_id: existing.id,
+              body,
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number,
+              body,
+            });
+          }
+
+    - name: Fail on findings
+      if: >-
+        steps.collect.outputs.has-files == 'true' &&
+        inputs.fail-on-findings == 'true' &&
+        steps.validate.outputs.has-findings == 'true'
+      shell: bash
+      run: |
+        echo "evmbench: findings detected and fail-on-findings=true" >&2
+        exit 1
