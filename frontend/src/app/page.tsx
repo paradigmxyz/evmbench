@@ -4,7 +4,7 @@ import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { AppFooter } from "@/components/app-footer"
 import { AppHeader } from "@/components/app-header"
 import { FileUploader } from "@/components/file-uploader"
@@ -22,6 +22,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useLocalStorage } from "@/hooks/use-local-storage"
 import { useSessionStorage } from "@/hooks/use-session-storage"
 import { API_BASE } from "@/lib/api"
+import { DEFAULT_MODEL_KEY } from "@/lib/integration"
 import { startJob } from "@/lib/jobs"
 import { addRecentJob, type RecentJob } from "@/lib/recent-jobs"
 import { inferPackageName } from "@/lib/upload-utils"
@@ -34,7 +35,7 @@ export default function Page() {
   const router = useRouter()
   const { files, packageName, setUpload, clearUpload } = useUploadStore()
   const [openaiKey, setOpenaiKey] = useSessionStorage("evmbench.openaiKey", "")
-  const [model, setModel] = useState("codex-gpt-5.2")
+  const [model, setModel] = useState(DEFAULT_MODEL_KEY)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [recentJobs, setRecentJobs] = useLocalStorage<RecentJob[]>(
@@ -46,6 +47,8 @@ export default function Page() {
     isLoading: isAuthLoading,
     isConfigLoading,
     keyPredefined,
+    defaultModel,
+    models,
   } = useAuth()
 
   const fileCount = files?.length ?? 0
@@ -57,6 +60,12 @@ export default function Page() {
 
   const canSubmit =
     !!files && fileCount > 0 && !isSubmitting && !isAuthLoading && isAuthorized
+
+  useEffect(() => {
+    if (!models.some((option) => option.key === model)) {
+      setModel(defaultModel)
+    }
+  }, [defaultModel, model, models])
 
   const handleFilesSelected = useCallback(
     (selected: File[]) => {
@@ -224,12 +233,11 @@ export default function Page() {
                       <SelectValue placeholder="Select model" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="codex-gpt-5.2">
-                        codex-gpt-5.2
-                      </SelectItem>
-                      <SelectItem value="codex-gpt-5.1-codex-max">
-                        codex-gpt-5.1-codex-max
-                      </SelectItem>
+                      {models.map((option) => (
+                        <SelectItem key={option.key} value={option.key}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

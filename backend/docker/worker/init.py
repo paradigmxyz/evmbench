@@ -37,7 +37,7 @@ MODEL_KEY = os.getenv('AGENT_ID', '').strip()
 
 RUNNER_DIR = Path(os.getenv('EVM_BENCH_RUNNER_DIR') or '/opt/evmbench/worker_runner')
 DETECT_MD_PATH = RUNNER_DIR / 'detect.md'
-MODEL_MAP_PATH = RUNNER_DIR / 'model_map.json'
+MODEL_CATALOG_PATH = Path(os.getenv('EVM_BENCH_MODEL_CATALOG') or '/opt/evmbench/model_catalog.json')
 CODEX_RUNNER_SH = RUNNER_DIR / 'run_codex_detect.sh'
 
 
@@ -69,35 +69,47 @@ def _write_codex_proxy_config(*, home: Path) -> None:
     config_path.write_text(config, encoding='utf-8')
 
 
-def _load_model_map() -> dict[str, str]:
+def _load_model_catalog() -> tuple[str | None, dict[str, str]]:
     try:
-        data = json.loads(MODEL_MAP_PATH.read_text(encoding='utf-8'))
+        data = json.loads(MODEL_CATALOG_PATH.read_text(encoding='utf-8'))
     except FileNotFoundError:
-        logger.warning(f'Missing {MODEL_MAP_PATH=}; falling back to MODEL_KEY passthrough')
-        return {}
+        logger.warning(f'Missing {MODEL_CATALOG_PATH=}; falling back to MODEL_KEY passthrough')
+        return None, {}
     except Exception as err:  # noqa: BLE001
-        logger.warning(f'Unable to parse {MODEL_MAP_PATH=}: {err}')
-        return {}
+        logger.warning(f'Unable to parse {MODEL_CATALOG_PATH=}: {err}')
+        return None, {}
 
     if not isinstance(data, dict):
-        logger.warning(f'Unexpected model map type: {type(data)}; expected object')
-        return {}
+        logger.warning(f'Unexpected model catalog type: {type(data)}; expected object')
+        return None, {}
+
+    models = data.get('models')
+    if not isinstance(models, list):
+        logger.warning('Unexpected model catalog models type; expected list')
+        return None, {}
 
     model_map: dict[str, str] = {}
-    for k, v in data.items():
-        if isinstance(k, str) and isinstance(v, str) and k.strip() and v.strip():
-            model_map[k.strip()] = v.strip()
-    return model_map
+    for item in models:
+        if not isinstance(item, dict):
+            continue
+        key = item.get('key')
+        codex_model = item.get('codex_model')
+        if isinstance(key, str) and isinstance(codex_model, str) and key.strip() and codex_model.strip():
+            model_map[key.strip()] = codex_model.strip()
+
+    default_key = data.get('default')
+    default_model = model_map.get(default_key.strip()) if isinstance(default_key, str) else None
+    return default_model, model_map
 
 
-def _resolve_codex_model(*, model_key: str, model_map: dict[str, str]) -> str:
+def _resolve_codex_model(*, model_key: str, default_model: str | None, model_map: dict[str, str]) -> str:
     key = (model_key or '').strip()
     if key and key in model_map:
         return model_map[key]
     if key:
         # Allow passing a raw Codex model id via AGENT_ID.
         return key
-    return model_map.get('codex-gpt-5.2', 'gpt-5.2-2025-12-11')
+    return default_model or 'gpt-5.5'
 
 
 def _extract_fenced_json(text: str) -> str:
@@ -181,8 +193,8 @@ def _run_codex_detect(*, openai_token: str, key_mode: str) -> Path:
         msg = f'Missing Codex runner: {CODEX_RUNNER_SH}'
         raise RuntimeError(msg)
 
-    model_map = _load_model_map()
-    model = _resolve_codex_model(model_key=MODEL_KEY, model_map=model_map)
+    default_model, model_map = _load_model_catalog()
+    model = _resolve_codex_model(model_key=MODEL_KEY, default_model=default_model, model_map=model_map)
     env['CODEX_MODEL'] = model
     env['EVM_BENCH_DETECT_MD'] = str(DETECT_MD_PATH)
 

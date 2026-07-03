@@ -3,7 +3,7 @@ VALUES (
     'd41ec6e6-3da7-4819-8055-826857a440c0',
     'succeeded',
     '71956291',
-    'codex-gpt-5.2',
+    'codex-gpt-5.5',
     'ICoveredMetavault.sol.zip',
     NULL,
     '{

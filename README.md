@@ -47,7 +47,7 @@ Frontend (Next.js)
 3. The Instancer consumes the job and starts a worker (Docker locally; Kubernetes backend is optional).
 4. The worker fetches its bundle from the Secrets Service, unpacks the uploaded zip to `audit/`, then runs Codex in "detect-only" mode:
    - prompt: `backend/worker_runner/detect.md` (copied to `$HOME/AGENTS.md` inside the container)
-   - model map: `backend/worker_runner/model_map.json` (maps UI model keys to Codex model IDs)
+   - model catalog: `backend/model_catalog.json` (maps UI model keys to Codex model IDs)
    - command wrapper: `backend/worker_runner/run_codex_detect.sh`
 5. The agent writes `submission/audit.md`. The worker validates that the output contains parseable JSON with `{"vulnerabilities": [...]}` and then uploads it to the Results Service.
 6. The frontend polls job status and renders the report with file navigation and annotations.

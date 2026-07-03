@@ -1,12 +1,19 @@
 import { useEffect, useState } from "react"
 import { type AuthUser, fetchMe } from "@/lib/auth"
-import { type FrontendConfig, fetchFrontendConfig } from "@/lib/integration"
+import {
+  DEFAULT_MODEL_KEY,
+  DEFAULT_MODEL_OPTIONS,
+  type FrontendConfig,
+  fetchFrontendConfig,
+} from "@/lib/integration"
 
 const FRONTEND_CONFIG_TTL_MS = 10000
 const DEFAULT_FRONTEND_CONFIG: FrontendConfig = {
   // OSS-friendly default: if the backend config can't be fetched, don't gate usage on auth.
   auth_enabled: false,
   key_predefined: false,
+  default_model: DEFAULT_MODEL_KEY,
+  models: DEFAULT_MODEL_OPTIONS,
 }
 let frontendConfigCache: { value: FrontendConfig; timestamp: number } | null =
   null
@@ -85,6 +92,16 @@ export function useAuth() {
       ? frontendConfigCache.value.key_predefined
       : DEFAULT_FRONTEND_CONFIG.key_predefined,
   )
+  const [defaultModel, setDefaultModel] = useState(
+    frontendConfigCache
+      ? frontendConfigCache.value.default_model
+      : DEFAULT_FRONTEND_CONFIG.default_model,
+  )
+  const [models, setModels] = useState(
+    frontendConfigCache
+      ? frontendConfigCache.value.models
+      : DEFAULT_FRONTEND_CONFIG.models,
+  )
 
   useEffect(() => {
     let isMounted = true
@@ -93,8 +110,18 @@ export function useAuth() {
       try {
         const config = await getFrontendConfig()
         if (isMounted) {
+          const nextModels = config.models?.length
+            ? config.models
+            : DEFAULT_MODEL_OPTIONS
+          const nextDefaultModel = nextModels.some(
+            (option) => option.key === config.default_model,
+          )
+            ? config.default_model
+            : nextModels[0]?.key || DEFAULT_MODEL_KEY
           setIsAuthEnabled(config.auth_enabled)
           setKeyPredefined(config.key_predefined)
+          setDefaultModel(nextDefaultModel)
+          setModels(nextModels)
           setIsConfigLoading(false)
         }
 
@@ -136,6 +163,8 @@ export function useAuth() {
     isConfigLoading,
     isAuthEnabled,
     keyPredefined,
+    defaultModel,
+    models,
     isAuthorized: !isAuthEnabled || Boolean(user),
   }
 }

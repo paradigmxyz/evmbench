@@ -13,6 +13,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 WORKDIR /app
 
 COPY pyproject.toml uv.lock alembic.ini ./
+COPY model_catalog.json ./
 
 COPY api api
 COPY instancer instancer

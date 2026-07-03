@@ -3,6 +3,7 @@ FROM ${BASE_IMAGE}
 
 RUN python3 -m pip install --no-cache-dir httpx uvloop loguru
 COPY docker/worker/init.py /tmp/init.py
+COPY model_catalog.json /opt/evmbench/model_catalog.json
 COPY worker_runner/ /opt/evmbench/worker_runner/
 RUN chmod +x /opt/evmbench/worker_runner/run_codex_detect.sh
 

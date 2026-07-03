@@ -1,0 +1,30 @@
+{
+  "default": "codex-gpt-5.5",
+  "models": [
+    {
+      "key": "codex-gpt-5.5",
+      "label": "codex-gpt-5.5",
+      "codex_model": "gpt-5.5"
+    },
+    {
+      "key": "codex-gpt-5.4",
+      "label": "codex-gpt-5.4",
+      "codex_model": "gpt-5.4"
+    },
+    {
+      "key": "codex-gpt-5.4-mini",
+      "label": "codex-gpt-5.4-mini",
+      "codex_model": "gpt-5.4-mini"
+    },
+    {
+      "key": "codex-gpt-5.2",
+      "label": "codex-gpt-5.2 (legacy)",
+      "codex_model": "gpt-5.2-2025-12-11"
+    },
+    {
+      "key": "codex-gpt-5.1-codex-max",
+      "label": "codex-gpt-5.1-codex-max (legacy)",
+      "codex_model": "gpt-5.1-codex-max"
+    }
+  ]
+}
