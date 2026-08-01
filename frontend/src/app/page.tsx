@@ -230,6 +230,14 @@ export default function Page() {
                       <SelectItem value="codex-gpt-5.1-codex-max">
                         codex-gpt-5.1-codex-max
                       </SelectItem>
+                      <SelectItem value="gpt-5.4-2026-03-05">gpt-5.4-2026-03-05</SelectItem>
+                      <SelectItem value="gpt-5.4">gpt-5.4</SelectItem>
+                      <SelectItem value="gpt-5.4-mini">gpt-5.4-mini</SelectItem>
+                      <SelectItem value="gpt-5.4-nano">gpt-5.4-nano</SelectItem>
+                      <SelectItem value="gpt-5.5-pro-2026-04-23">gpt-5.5-pro-2026-04-23</SelectItem>
+                      <SelectItem value="gpt-5.5">gpt-5.5</SelectItem>
+                      <SelectItem value="gpt-5.6-sol">gpt-5.6-sol</SelectItem>
+                      <SelectItem value="gpt-5.5-pro">gpt-5.5-pro</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
