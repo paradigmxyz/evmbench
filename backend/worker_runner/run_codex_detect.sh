@@ -10,6 +10,7 @@ set -euo pipefail
 # - OPENAI_API_KEY: plaintext key (direct mode) or opaque token (proxy mode)
 # - CODEX_API_KEY: same value as OPENAI_API_KEY (kept aligned)
 # - CODEX_MODEL: resolved Codex model id
+# - CODEX_REASONING_EFFORT: reasoning level (default medium; none is not allowed)
 # - EVM_BENCH_DETECT_MD: path to detect instructions markdown
 # - EVM_BENCH_CODEX_TIMEOUT_SECONDS: optional max runtime (default 10800)
 
@@ -22,6 +23,15 @@ set -euo pipefail
 : "${EVM_BENCH_DETECT_MD:?missing EVM_BENCH_DETECT_MD}"
 
 mkdir -p "${SUBMISSION_DIR}" "${LOGS_DIR}"
+
+CODEX_ARGS=(exec --model "${CODEX_MODEL}" --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check --json)
+REASONING_EFFORT="${CODEX_REASONING_EFFORT:-medium}"
+case "${REASONING_EFFORT}" in
+  low|medium|high|xhigh|max)
+    CODEX_ARGS+=(--config "model_reasoning_effort=\"${REASONING_EFFORT}\"")
+    ;;
+  *) echo "invalid CODEX_REASONING_EFFORT" >&2; exit 2 ;;
+esac
 
 # Keep runaway audits bounded by default.
 TIMEOUT_SECONDS="${EVM_BENCH_CODEX_TIMEOUT_SECONDS:-10800}"
@@ -44,11 +54,8 @@ if [[ ! -f "${AUTH_PATH}" ]]; then
   printf '%s\n' "${OPENAI_API_KEY}" | codex login --with-api-key > "${LOGS_DIR}/codex_login.log" 2>&1 || true
 fi
 
-timeout --signal=KILL "${TIMEOUT_SECONDS}s" codex exec \
-  --model "${CODEX_MODEL}" \
-  --dangerously-bypass-approvals-and-sandbox \
-  --skip-git-repo-check \
-  --experimental-json \
+timeout --signal=KILL "${TIMEOUT_SECONDS}s" codex \
+  "${CODEX_ARGS[@]}" \
   "${LAUNCHER_PROMPT}" \
   > "${LOGS_DIR}/agent.log" 2>&1
 
@@ -56,4 +63,3 @@ if [[ ! -s "${SUBMISSION_DIR}/audit.md" ]]; then
   echo "missing expected output: ${SUBMISSION_DIR}/audit.md" >&2
   exit 2
 fi
-

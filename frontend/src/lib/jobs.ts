@@ -15,6 +15,7 @@ export interface JobResponse {
   result: JobReport | null
   error: string | null
   model: string
+  reasoning_effort: string | null
   file_name: string
   public: boolean
   queue_position: number | null
@@ -95,11 +96,13 @@ export async function startJob(
   file: File,
   model: string,
   openaiKey: string,
+  reasoningEffort?: string,
 ): Promise<StartJobResponse> {
   const body = new FormData()
   body.append("file", file)
   body.append("model", model)
   body.append("openai_key", openaiKey)
+  if (reasoningEffort) body.append("reasoning_effort", reasoningEffort)
 
   const response = await fetch(`${API_BASE}/v1/jobs/start`, {
     method: "POST",

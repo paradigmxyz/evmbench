@@ -8,6 +8,7 @@ class StartWorkerOptions:
     secret_ref: str
     model: str
     result_token: str
+    reasoning_effort: str | None = None
 
 
 @dataclass(frozen=True)

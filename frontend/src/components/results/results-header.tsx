@@ -7,7 +7,6 @@ import {
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { toast } from "sonner"
-import { PATH_PREFIX } from "@/lib/api"
 import { AppHeader } from "@/components/app-header"
 import { Button } from "@/components/ui/button"
 import {
@@ -30,8 +29,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useMediaQuery } from "@/hooks/use-media-query"
+import { PATH_PREFIX } from "@/lib/api"
 import { isJobActive } from "@/lib/job-status"
 import type { JobResponse } from "@/lib/jobs"
+import { reasoningLabel } from "@/lib/models"
 import { formatDateTime } from "@/lib/time"
 import { JobStatusBadge, JobStatusDot } from "./job-status-badge"
 
@@ -74,6 +75,8 @@ function JobDetailsContent({
         )}
         <span className="text-muted-foreground">Model</span>
         <span>{job?.model ?? "—"}</span>
+        <span className="text-muted-foreground">Reasoning</span>
+        <span>{job ? reasoningLabel(job.reasoning_effort) : "—"}</span>
         <span className="text-muted-foreground">File</span>
         <span className="truncate">{job?.file_name ?? "—"}</span>
         {job?.created_at && (

@@ -162,6 +162,7 @@ async def start_job(
             secret_ref=secret_ref,
             result_token=result_token,
             model=form.model,
+            reasoning_effort=form.reasoning_effort,
             file_name=(form.file.filename or 'files.zip')[:128],
         )
         session.add(job)
@@ -172,6 +173,7 @@ async def start_job(
                 job_id=str(job_id),
                 secret_ref=secret_ref,
                 model=form.model,
+                reasoning_effort=form.reasoning_effort,
                 result_token=result_token,
             )
         except Exception as err:

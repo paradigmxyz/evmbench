@@ -203,6 +203,8 @@ class K8sBackend(BackendABC):
         }
         if settings.INSTANCER_OAI_PROXY_BASE_URL:
             env['OAI_PROXY_BASE_URL'] = settings.INSTANCER_OAI_PROXY_BASE_URL
+        if options.reasoning_effort is not None:
+            env['CODEX_REASONING_EFFORT'] = options.reasoning_effort
 
         job = client.V1Job(
             metadata=client.V1ObjectMeta(
