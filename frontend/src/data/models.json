@@ -1,0 +1,42 @@
+[
+  {
+    "id": "codex-gpt-6-astra",
+    "label": "GPT-6 Astra",
+    "reasoningEfforts": ["low", "medium", "high", "xhigh", "max"]
+  },
+  {
+    "id": "codex-gpt-5.6-sol",
+    "label": "GPT-5.6 Sol",
+    "reasoningEfforts": ["low", "medium", "high", "xhigh", "max"]
+  },
+  {
+    "id": "codex-gpt-5.6-terra",
+    "label": "GPT-5.6 Terra",
+    "reasoningEfforts": ["low", "medium", "high", "xhigh", "max"]
+  },
+  {
+    "id": "codex-gpt-5.6-luna",
+    "label": "GPT-5.6 Luna",
+    "reasoningEfforts": ["low", "medium", "high", "xhigh", "max"]
+  },
+  {
+    "id": "codex-gpt-5.5",
+    "label": "GPT-5.5",
+    "reasoningEfforts": ["low", "medium", "high", "xhigh"]
+  },
+  {
+    "id": "codex-gpt-5.4",
+    "label": "GPT-5.4",
+    "reasoningEfforts": ["low", "medium", "high", "xhigh"]
+  },
+  {
+    "id": "codex-gpt-5.3-codex",
+    "label": "GPT-5.3 Codex",
+    "reasoningEfforts": ["low", "medium", "high", "xhigh"]
+  },
+  {
+    "id": "codex-gpt-5.2",
+    "label": "GPT-5.2",
+    "reasoningEfforts": ["low", "medium", "high", "xhigh"]
+  }
+]

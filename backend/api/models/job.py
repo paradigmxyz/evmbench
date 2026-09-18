@@ -35,6 +35,7 @@ class Job(Base):
 
     user_id: Mapped[str] = mapped_column(String(128))
     model: Mapped[str] = mapped_column(String(64))
+    reasoning_effort: Mapped[str | None] = mapped_column(String(16))
     file_name: Mapped[str] = mapped_column(String(128))
     secret_ref: Mapped[str | None] = mapped_column(String(64))
 

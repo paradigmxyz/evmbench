@@ -6,6 +6,7 @@ import orjson
 from aio_pika.abc import AbstractIncomingMessage, Arguments
 from loguru import logger
 
+from api.core.const import MODEL_REASONING_EFFORTS
 from instancer.backends.abc import StartWorkerOptions
 from instancer.core.config import settings
 from instancer.core.impl import workers_backend
@@ -98,6 +99,9 @@ async def handle_job_start_message(message: AbstractIncomingMessage) -> None:
     secret_ref = payload.get('secret_ref')
     model = payload.get('model')
     result_token = payload.get('result_token')
+    reasoning_effort = payload.get('reasoning_effort')
+    if reasoning_effort is None:
+        reasoning_effort = 'medium'
     if (
         not isinstance(job_id, str)
         or not isinstance(secret_ref, str)
@@ -105,6 +109,11 @@ async def handle_job_start_message(message: AbstractIncomingMessage) -> None:
         or not isinstance(result_token, str)
     ):
         logger.warning(f'Missing job_id/secret_ref/model/result_token in payload={payload}')
+        await message.reject(requeue=False)
+        return
+
+    if not isinstance(reasoning_effort, str) or reasoning_effort not in MODEL_REASONING_EFFORTS.get(model, ()):
+        logger.warning(f'Invalid reasoning_effort for job_id={job_id}')
         await message.reject(requeue=False)
         return
 
@@ -119,6 +128,7 @@ async def handle_job_start_message(message: AbstractIncomingMessage) -> None:
                 secret_ref=secret_ref,
                 model=model,
                 result_token=result_token,
+                reasoning_effort=reasoning_effort,
             )
         )
         if start_result.error:

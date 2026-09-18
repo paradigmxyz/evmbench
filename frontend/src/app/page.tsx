@@ -18,11 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import models from "@/data/models.json"
 import { useAuth } from "@/hooks/use-auth"
 import { useLocalStorage } from "@/hooks/use-local-storage"
 import { useSessionStorage } from "@/hooks/use-session-storage"
 import { API_BASE } from "@/lib/api"
 import { startJob } from "@/lib/jobs"
+import { getReasoningEfforts, reasoningLabel } from "@/lib/models"
 import { addRecentJob, type RecentJob } from "@/lib/recent-jobs"
 import { inferPackageName } from "@/lib/upload-utils"
 import { createZipFromFiles } from "@/lib/zip"
@@ -35,6 +37,8 @@ export default function Page() {
   const { files, packageName, setUpload, clearUpload } = useUploadStore()
   const [openaiKey, setOpenaiKey] = useSessionStorage("evmbench.openaiKey", "")
   const [model, setModel] = useState("codex-gpt-5.2")
+  const [reasoningEffort, setReasoningEffort] = useState("medium")
+  const reasoningEfforts = getReasoningEfforts(model)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [recentJobs, setRecentJobs] = useLocalStorage<RecentJob[]>(
@@ -86,7 +90,14 @@ export default function Page() {
     try {
       const name = selectedLabel ?? "files"
       const zipFile = await createZipFromFiles(files, name)
-      const response = await startJob(zipFile, model, trimmedKey)
+      const response = await startJob(
+        zipFile,
+        model,
+        trimmedKey,
+        reasoningEfforts.includes(reasoningEffort)
+          ? reasoningEffort
+          : undefined,
+      )
       // Persist locally so users can navigate back without server-side auth/history.
       const next = addRecentJob({
         job_id: response.job_id,
@@ -107,7 +118,7 @@ export default function Page() {
       <AppHeader showLogo={false} showBorder={false} />
       <section className="flex flex-1 items-center justify-center px-6 py-12">
         <div className="w-full max-w-4xl">
-          <div className="mx-auto grid max-w-sm gap-10 lg:max-w-none lg:grid-cols-5">
+          <div className="mx-auto grid max-w-sm gap-10 lg:max-w-none lg:grid-cols-5 lg:items-center">
             <div className="space-y-6 lg:col-span-3">
               <div>
                 <div className="-ms-2 mb-3 flex items-center gap-2">
@@ -219,20 +230,55 @@ export default function Page() {
                   >
                     Model
                   </Label>
-                  <Select value={model} onValueChange={setModel}>
+                  <Select
+                    value={model}
+                    onValueChange={(nextModel) => {
+                      setModel(nextModel)
+                      setReasoningEffort((current) =>
+                        getReasoningEfforts(nextModel).includes(current)
+                          ? current
+                          : "medium",
+                      )
+                    }}
+                  >
                     <SelectTrigger id="model-select" className="w-full">
                       <SelectValue placeholder="Select model" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="codex-gpt-5.2">
-                        codex-gpt-5.2
-                      </SelectItem>
-                      <SelectItem value="codex-gpt-5.1-codex-max">
-                        codex-gpt-5.1-codex-max
-                      </SelectItem>
+                      {models.map(({ id, label }) => (
+                        <SelectItem key={id} value={id}>
+                          {label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
+                {reasoningEfforts.length > 0 && (
+                  <div className="grid gap-1">
+                    <Label
+                      htmlFor="reasoning-select"
+                      className="text-xs text-foreground"
+                    >
+                      Reasoning level
+                    </Label>
+                    <Select
+                      value={reasoningEffort}
+                      onValueChange={setReasoningEffort}
+                    >
+                      <SelectTrigger id="reasoning-select" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {reasoningEfforts.map((effort) => (
+                          <SelectItem key={effort} value={effort}>
+                            {reasoningLabel(effort)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p>Higher levels can take longer and use more tokens.</p>
+                  </div>
+                )}
                 {!isAuthLoading && !isAuthorized && (
                   <span className="text-base font-serif text-muted-foreground">
                     <a

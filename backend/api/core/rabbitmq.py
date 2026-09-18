@@ -34,12 +34,15 @@ class RabbitMQPublisher:
             raise RuntimeError(msg)
         return self._channel
 
-    async def publish_job_start(self, *, job_id: str, secret_ref: str, model: str, result_token: str) -> None:
+    async def publish_job_start(
+        self, *, job_id: str, secret_ref: str, model: str, result_token: str, reasoning_effort: str | None = None
+    ) -> None:
         payload = {
             'type': 'job.start',
             'job_id': job_id,
             'secret_ref': secret_ref,
             'model': model,
+            'reasoning_effort': reasoning_effort,
             'result_token': result_token,
         }
         channel = self._require_channel()

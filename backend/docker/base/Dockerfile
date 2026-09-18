@@ -32,27 +32,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # setup the folders
 RUN mkdir -p "$AUDIT_DIR" "$SUBMISSION_DIR" "$LOGS_DIR"
 
-# install codex
-# Default to the latest known stable release tag; can be overridden at build time:
-#   docker build --build-arg CODEX_VERSION=rust-vX.Y.Z ...
-ARG CODEX_VERSION=rust-v0.104.0
-ARG TARGETARCH
-RUN set -eux; \
-    arch="${TARGETARCH:-$(dpkg --print-architecture)}"; \
-    case "$arch" in \
-      amd64) CODEX_ARCH="x86_64" ;; \
-      arm64) CODEX_ARCH="aarch64" ;; \
-      *) echo "Unsupported arch: $arch" >&2; exit 1 ;; \
-    esac; \
-    CODEX_URL="https://github.com/openai/codex/releases/download/${CODEX_VERSION}/codex-${CODEX_ARCH}-unknown-linux-gnu.tar.gz"; \
-    mkdir -p /usr/local/src/codex; cd /usr/local/src/codex; \
-    curl -L -o codex.tgz "$CODEX_URL"; \
-    ENTRY="$(tar -tzf codex.tgz | grep -v '/$' | head -n1)"; \
-    test -n "$ENTRY"; \
-    tar -xzf codex.tgz -O "$ENTRY" > /usr/local/bin/codex; \
-    chmod 0755 /usr/local/bin/codex; \
-    cd /; rm -rf /usr/local/src/codex; \
-    codex --version
+# install the pinned Codex release and its platform-specific runtime helpers
+# Override at build time: docker build --build-arg CODEX_VERSION=X.Y.Z ...
+ARG CODEX_VERSION=0.155.1
+RUN npm install --global "@openai/codex@${CODEX_VERSION}" && codex --version
 
 # install ripgrep
 RUN apt-get update && apt-get install -y --no-install-recommends ripgrep && rm -rf /var/lib/apt/lists/*

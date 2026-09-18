@@ -6,6 +6,7 @@ from fastapi import File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError, field_validator, model_validator
 
 from api.core.config import settings
+from api.core.const import MODEL_REASONING_EFFORTS
 from api.models.job import JobStatus
 from api.util.zip_validate import validate_upload_zip
 
@@ -14,6 +15,7 @@ class StartJobForm(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     model: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+    reasoning_effort: str = 'medium'
     openai_key: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1)]
     file: UploadFile
 
@@ -23,9 +25,15 @@ class StartJobForm(BaseModel):
         model: Annotated[str, Form()],
         file: Annotated[UploadFile, File()],
         openai_key: Annotated[str | None, Form()] = None,
+        reasoning_effort: Annotated[str | None, Form()] = None,
     ) -> 'StartJobForm':
         try:
-            return cls(model=model, openai_key=openai_key, file=file)
+            return cls(
+                model=model,
+                openai_key=openai_key,
+                file=file,
+                reasoning_effort=reasoning_effort if reasoning_effort is not None else 'medium',
+            )
         except ValidationError as exc:
             # TODO(es3n1n): this is **very** bad
             errors = exc.errors()
@@ -42,6 +50,14 @@ class StartJobForm(BaseModel):
             if not messages:
                 messages = ['Invalid request']
             raise HTTPException(status_code=412, detail=messages[0]) from exc
+
+    @model_validator(mode='after')
+    def validate_reasoning_effort(self) -> 'StartJobForm':
+        supported = MODEL_REASONING_EFFORTS.get(self.model)
+        if supported is not None and self.reasoning_effort not in supported:
+            msg = 'Reasoning level is not supported by the selected model'
+            raise ValueError(msg)
+        return self
 
     @model_validator(mode='after')
     def require_openai_key(self) -> 'StartJobForm':
@@ -98,6 +114,7 @@ class JobStatusResponse(BaseModel):
     result: dict | None
     error: str | None = Field(validation_alias='result_error')
     model: str
+    reasoning_effort: str | None = None
     file_name: str
     public: bool
     created_at: datetime

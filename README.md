@@ -42,7 +42,7 @@ Frontend (Next.js)
 
 ### End-to-end flow
 
-1. User uploads a zip of contract files via the frontend. The UI sends the archive, selected model key, and (optionally) an OpenAI API key to `/v1/jobs/start`.
+1. User uploads a zip of contract files via the frontend. The UI sends the archive, selected model key, reasoning level, and user-provided OpenAI API key to `/v1/jobs/start`.
 2. The backend creates a job record in Postgres, stores a secret bundle in the Secrets Service, and publishes a message to RabbitMQ.
 3. The Instancer consumes the job and starts a worker (Docker locally; Kubernetes backend is optional).
 4. The worker fetches its bundle from the Secrets Service, unpacks the uploaded zip to `audit/`, then runs Codex in "detect-only" mode:

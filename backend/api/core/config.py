@@ -47,6 +47,8 @@ class Settings(BaseSettings):
     # - proxy: worker receives encrypted token; oai_proxy decrypts and forwards upstream
     BACKEND_OAI_KEY_MODE: Literal['direct', 'proxy'] = 'direct'
 
+    # Shared credentials require an explicit opt-in on both the API and proxy.
+    OAI_SHARED_KEY_ENABLED: bool = False
     BACKEND_STATIC_OAI_KEY: Secret[str] | None = None
     # When true, use the proxy's static key (sends "STATIC" marker instead of encrypted key)
     # The real OpenAI key is only known by oai_proxy, never exposed to backend or agents
@@ -68,6 +70,13 @@ class Settings(BaseSettings):
 
     AUTH_BACKEND: str | None = None
     AUTH_BACKEND_ARGUMENTS: dict[str, str] = Field(default_factory=dict)
+
+    @model_validator(mode='after')
+    def _disable_shared_key(self) -> 'Settings':
+        if not self.OAI_SHARED_KEY_ENABLED:
+            self.BACKEND_STATIC_OAI_KEY = None
+            self.BACKEND_USE_PROXY_STATIC_KEY = False
+        return self
 
     @field_validator('RABBITMQ_QUEUE_SUFFIX', mode='before')
     @classmethod
