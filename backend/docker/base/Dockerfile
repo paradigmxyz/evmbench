@@ -48,7 +48,8 @@ RUN foundryup
 
 # install slither (static analysis). This is "best effort": solc versioning
 # varies across codebases; users/agents can install/use solc-select as needed.
-RUN python3 -m pip install --no-cache-dir slither-analyzer solc-select
+RUN python3 -m pip install --upgrade pip==26.2.2 && \
+    python3 -m pip install --no-cache-dir slither-analyzer solc-select
 
 # set the git config up
 RUN git config --global --add safe.directory $AGENT_DIR && \
