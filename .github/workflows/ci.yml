@@ -14,6 +14,8 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.13.4"
 
       - name: Install backend deps (locked)
         working-directory: backend
