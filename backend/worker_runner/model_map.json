@@ -1,10 +1,6 @@
 {
-  "codex-gpt-6-astra": "gpt-6-astra",
-  "codex-gpt-5.6-sol": "gpt-5.6-sol",
-  "codex-gpt-5.6-terra": "gpt-5.6-terra",
-  "codex-gpt-5.6-luna": "gpt-5.6-luna",
-  "codex-gpt-5.5": "gpt-5.5",
-  "codex-gpt-5.4": "gpt-5.4",
-  "codex-gpt-5.3-codex": "gpt-5.3-codex",
-  "codex-gpt-5.2": "gpt-5.2-2025-12-11"
+  "zcode-glm-5.3": "GLM-5.3",
+  "zcode-glm-5.3-flash": "GLM-5.3-Flash",
+  "zcode-glm-5.3-highspeed": "GLM-5.3-HighSpeed",
+  "zcode-glm-5.3-flashx": "GLM-5.3-FlashX"
 }

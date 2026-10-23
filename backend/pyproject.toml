@@ -18,6 +18,7 @@ dependencies = [
     "sqlalchemy==2.0.46",
     "alembic==1.18.1",
     "asyncpg==0.31.0",
+    "aiosqlite==0.21.0",
     "python-multipart==0.0.22",
     "greenlet==3.3.1",
     "kubernetes>=35.0.0",

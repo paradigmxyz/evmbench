@@ -1,13 +1,12 @@
-# Allowed reasoning levels (non-reasoning mode is disabled); keep aligned with frontend/src/data/models.json.
+# Allowed reasoning levels; keep aligned with frontend/src/data/models.json.
+# Values are advisory directives for the ZCode runner (the zcode CLI has no
+# native reasoning-effort flag), so keep the vocabulary identical to the
+# Codex-era levels the rest of the pipeline already validates.
 MODEL_REASONING_EFFORTS = {
-    'codex-gpt-5.2': ('low', 'medium', 'high', 'xhigh'),
-    'codex-gpt-5.3-codex': ('low', 'medium', 'high', 'xhigh'),
-    'codex-gpt-5.4': ('low', 'medium', 'high', 'xhigh'),
-    'codex-gpt-5.5': ('low', 'medium', 'high', 'xhigh'),
-    'codex-gpt-5.6-sol': ('low', 'medium', 'high', 'xhigh', 'max'),
-    'codex-gpt-5.6-terra': ('low', 'medium', 'high', 'xhigh', 'max'),
-    'codex-gpt-5.6-luna': ('low', 'medium', 'high', 'xhigh', 'max'),
-    'codex-gpt-6-astra': ('low', 'medium', 'high', 'xhigh', 'max'),
+    'zcode-glm-5.3': ('low', 'medium', 'high', 'max'),
+    'zcode-glm-5.3-flash': ('low', 'medium'),
+    'zcode-glm-5.3-highspeed': ('low', 'medium'),
+    'zcode-glm-5.3-flashx': ('low', 'medium'),
 }
 
 ALLOWED_MODELS = set(MODEL_REASONING_EFFORTS)

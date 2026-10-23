@@ -4,19 +4,38 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
+from loguru import logger
 
+import api.models.job  # noqa: F401  (registers the jobs table on Base)
 from api.core.config import settings
+from api.core.database import Base
+from api.core.deps import get_database
+from api.core.dispatch import LocalJobDispatcher
 from api.core.rabbitmq import RabbitMQPublisher
 
 from .routers.v1 import router as v1_router
 
 
+async def _auto_create_tables() -> None:
+    # Local no-Docker runs skip alembic and create the single jobs table directly.
+    engine = get_database().engine
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    logger.info('database tables created (DATABASE_AUTO_CREATE_TABLES)')
+
+
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
-    publisher = RabbitMQPublisher(
-        dsn=settings.RABBITMQ_DSN.get_secret_value(),
-        queue=settings.rabbitmq_queue_name,
-    )
+    if settings.DATABASE_AUTO_CREATE_TABLES:
+        await _auto_create_tables()
+
+    if settings.BACKEND_QUEUE_BACKEND == 'local':
+        publisher: RabbitMQPublisher | LocalJobDispatcher = LocalJobDispatcher()
+    else:
+        publisher = RabbitMQPublisher(
+            dsn=settings.RABBITMQ_DSN.get_secret_value(),  # type: ignore[union-attr]
+            queue=settings.rabbitmq_queue_name,
+        )
     await publisher.connect()
     fastapi_app.state.rabbitmq = publisher
     try:

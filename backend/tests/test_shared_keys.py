@@ -96,7 +96,7 @@ class SharedKeyTests(unittest.TestCase):
     def test_job_requires_user_key_despite_legacy_settings(self) -> None:
         for key in (None, '', '   '):
             with self.subTest(key=key):
-                data = {'model': 'codex-gpt-5.2'}
+                data = {'model': 'zcode-glm-5.3'}
                 if key is not None:
                     data['openai_key'] = key
                 response = self.client.post(
@@ -117,7 +117,7 @@ class SharedKeyTests(unittest.TestCase):
                 upstream.get.return_value = httpx.Response(200)
                 response = self.client.post(
                     '/v1/jobs/start',
-                    data={'model': 'codex-gpt-5.2', 'openai_key': 'test-user-key'},
+                    data={'model': 'zcode-glm-5.3', 'openai_key': 'test-user-key'},
                     files={'file': ('example.zip', upload_zip())},
                 )
                 self.assertEqual(response.status_code, 200, response.text)
@@ -143,7 +143,7 @@ class SharedKeyTests(unittest.TestCase):
             upstream.get.return_value = httpx.Response(401)
             response = self.client.post(
                 '/v1/jobs/start',
-                data={'model': 'codex-gpt-5.2', 'openai_key': 'invalid-user-key'},
+                data={'model': 'zcode-glm-5.3', 'openai_key': 'invalid-user-key'},
                 files={'file': ('example.zip', upload_zip())},
             )
         self.assertEqual(response.status_code, 401)
@@ -173,12 +173,9 @@ class SharedKeyTests(unittest.TestCase):
                 self.assertEqual(self.session.add.call_args.args[0].model, model_id)
                 queued_model = self.publisher.publish_job_start.await_args.kwargs['model']
                 self.assertEqual(queued_model, model_id)
-                expected_model = (
-                    'gpt-5.2-2025-12-11' if model_id == 'codex-gpt-5.2' else model_id.removeprefix('codex-')
-                )
                 self.assertEqual(
                     worker._resolve_codex_model(model_key=queued_model, model_map=model_map),
-                    expected_model,
+                    model_map[model_id],
                 )
                 self.assertEqual(self.session.add.call_args.args[0].reasoning_effort, 'medium')
                 self.assertEqual(self.publisher.publish_job_start.await_args.kwargs['reasoning_effort'], 'medium')
@@ -201,11 +198,11 @@ class SharedKeyTests(unittest.TestCase):
 
     def test_invalid_reasoning_combinations_are_rejected_before_key_validation(self) -> None:
         for model, effort in (
-            ('codex-gpt-5.2', 'max'),
-            ('codex-gpt-5.3-codex', 'none'),
-            ('codex-gpt-6-astra', 'none'),
-            ('codex-gpt-6-astra', 'ultra'),
-            ('codex-gpt-5.6-sol', 'unknown'),
+            ('zcode-glm-5.3', 'xhigh'),
+            ('zcode-glm-5.3-flash', 'none'),
+            ('zcode-glm-5.3-flashx', 'none'),
+            ('zcode-glm-5.3-highspeed', 'ultra'),
+            ('zcode-glm-5.3', 'unknown'),
         ):
             with self.subTest(model=model, effort=effort), patch.object(jobs, 'AsyncClient') as factory:
                 response = self.client.post(
@@ -220,7 +217,7 @@ class SharedKeyTests(unittest.TestCase):
         self.publisher.publish_job_start.assert_not_awaited()
 
     def test_unsupported_model_is_rejected_before_key_validation(self) -> None:
-        for model in ('unsupported-model', 'codex-gpt-5.1-codex-max', 'codex-gpt-5.4-mini'):
+        for model in ('unsupported-model', 'zcode-glm-5.2', 'zcode-glm-4.7', 'codex-gpt-5.2'):
             with self.subTest(model=model), patch.object(jobs, 'AsyncClient') as client_factory:
                 response = self.client.post(
                     '/v1/jobs/start',

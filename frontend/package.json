@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "bunx next dev",
-    "build": "bunx next build",
-    "start": "bunx next start",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "lint": "biome check",
     "format": "biome format --write"
   },

@@ -38,7 +38,9 @@ MODEL_KEY = os.getenv('AGENT_ID', '').strip()
 RUNNER_DIR = Path(os.getenv('EVM_BENCH_RUNNER_DIR') or '/opt/evmbench/worker_runner')
 DETECT_MD_PATH = RUNNER_DIR / 'detect.md'
 MODEL_MAP_PATH = RUNNER_DIR / 'model_map.json'
-CODEX_RUNNER_SH = RUNNER_DIR / 'run_codex_detect.sh'
+# Local no-Docker runs point this at run_zcode_detect.sh; containers keep the default.
+RUNNER_SCRIPT = os.getenv('EVM_BENCH_RUNNER_SCRIPT', 'run_codex_detect.sh')
+RUNNER_SH = RUNNER_DIR / RUNNER_SCRIPT
 
 
 def _write_codex_proxy_config(*, home: Path) -> None:
@@ -95,9 +97,9 @@ def _resolve_codex_model(*, model_key: str, model_map: dict[str, str]) -> str:
     if key and key in model_map:
         return model_map[key]
     if key:
-        # Allow passing a raw Codex model id via AGENT_ID.
+        # Allow passing a raw agent model id via AGENT_ID.
         return key
-    return model_map.get('codex-gpt-5.2', 'gpt-5.2-2025-12-11')
+    return model_map.get('zcode-glm-5.3', 'GLM-5.3')
 
 
 def _extract_fenced_json(text: str) -> str:
@@ -107,10 +109,22 @@ def _extract_fenced_json(text: str) -> str:
     start = text.find('\n', start)
     if start == -1:
         return text
-    end = text.find('```', start + 1)
+    body = text[start + 1 :]
+    # Prefer progressive parsing: agents embed ``` fences inside JSON string
+    # values (e.g. PoC code blocks), so cutting at the first closing fence
+    # truncates the document. raw_decode stops exactly at the end of the
+    # first complete JSON value, ignoring everything after it.
+    try:
+        _obj, end = json.JSONDecoder().raw_decode(body)
+    except ValueError:
+        pass
+    else:
+        return body[:end].strip()
+    # Fallback for degenerate output: old fence-cut behavior.
+    end = body.find('```')
     if end == -1:
         return text
-    return text[start + 1 : end].strip()
+    return body[:end].strip()
 
 
 def _validate_report_payload(payload: object) -> dict:
@@ -177,18 +191,20 @@ def _run_codex_detect(*, openai_token: str, key_mode: str) -> Path:
     if not DETECT_MD_PATH.exists():
         msg = f'Missing detect instructions: {DETECT_MD_PATH}'
         raise RuntimeError(msg)
-    if not CODEX_RUNNER_SH.exists():
-        msg = f'Missing Codex runner: {CODEX_RUNNER_SH}'
+    if not RUNNER_SH.exists():
+        msg = f'Missing agent runner: {RUNNER_SH}'
         raise RuntimeError(msg)
 
     model_map = _load_model_map()
     model = _resolve_codex_model(model_key=MODEL_KEY, model_map=model_map)
     env['CODEX_MODEL'] = model
+    # Generic alias so non-codex runners don't have to read a codex-named var.
+    env['AGENT_MODEL'] = model
     env['EVM_BENCH_DETECT_MD'] = str(DETECT_MD_PATH)
 
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
     proc = subprocess.run(  # noqa: S603
-        [str(CODEX_RUNNER_SH)],
+        [str(RUNNER_SH)],
         cwd=str(AGENT_DIR),
         env=env,
         stdout=subprocess.PIPE,

@@ -146,6 +146,53 @@ Open:
 - `http://127.0.0.1:3000` (frontend)
 - `http://127.0.0.1:1337/v1/integration/frontend` (backend config endpoint)
 
+## Local run with ZCode (no Docker)
+
+The stack can also run as plain local processes with the ZCode CLI (the agent
+bundled with the ZCode desktop app) instead of Codex in containers. In this
+mode Postgres is replaced by SQLite and the RabbitMQ/instancer/Docker pipeline
+by an in-process dispatcher; the ZCode worker reuses your desktop app login, so
+no API key is needed.
+
+Prerequisites:
+
+- [ZCode](https://z.ai) desktop app installed and logged in (its `zcode` CLI
+  must be on `PATH`)
+- [uv](https://docs.astral.sh/uv/) and Node.js (npm); foundry/slither optional
+  but recommended — the audit agent will use them when present
+
+Start everything (backend + frontend) with one command:
+
+```bash
+make local-up        # secretsvc (:8081), resultsvc (:8083), api (:1337), frontend (:3000)
+make local-status    # pids / health
+make local-restart   # stop + start
+make local-down      # stop everything
+```
+
+The first `make local-up` installs dependencies (`uv sync`, `npm install`) if
+needed. Prefer bun? Start the frontend yourself (`bun install && bun run dev`)
+on port 3000 after `make local-up` — the script skips the frontend if the port
+is already taken.
+
+Open `http://127.0.0.1:3000`, upload a contract zip and pick a GLM model
+(default `GLM-5.3`, reasoning defaults to `max`). Job artifacts land in
+`backend/.data/local_workers/<job_id>/` (`agent/` workspace, `logs/agent.log`
+etc.); delete that directory freely.
+
+Useful knobs (export before `make local-up`):
+
+- `ZCODE_MODE` — agent permission mode, default `yolo` (needed for builds/tests
+  during audits); set `plan` for read-only audits
+- `EVM_BENCH_ZCODE_TIMEOUT_SECONDS` — max audit runtime (default 10800)
+- `BACKEND_LOCAL_MAX_CONCURRENT_JOBS` — parallel audits (default 1)
+- `FRONTEND_PORT` — frontend port (default 3000)
+
+**Security note:** unlike the container path, local workers run the agent
+directly on your machine with full permissions and access to your ZCode login
+session. Only audit code you would be comfortable running tooling against
+locally, or use `ZCODE_MODE=plan`.
+
 ## Acknowledgments
 Thank you to many folks on the OtterSec team for support, particularly with building the frontend: es3n1n, jktrn, TrixterTheTux, sahuang
 

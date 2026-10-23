@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.core.config import settings
 from api.core.const import ALLOWED_MODELS
 from api.core.deps import OptionalTokenDep, TokenDep, get_db
+from api.core.dispatch import LocalJobDispatcher
 from api.core.impl import auth_backend
 from api.core.rabbitmq import RabbitMQPublisher, get_rabbitmq_publisher
 from api.models.job import Job, JobStatus
@@ -26,7 +27,8 @@ router = APIRouter(prefix='/jobs', tags=['jobs'])
 
 JobFormDep = Annotated[StartJobForm, Depends(StartJobForm.as_form)]
 DbSessionDep = Annotated[AsyncSession, Depends(get_db)]
-PublisherDep = Annotated[RabbitMQPublisher, Depends(get_rabbitmq_publisher)]
+# The app installs a RabbitMQPublisher or a LocalJobDispatcher on app.state.rabbitmq.
+PublisherDep = Annotated[RabbitMQPublisher | LocalJobDispatcher, Depends(get_rabbitmq_publisher)]
 
 
 async def _queue_position(session: AsyncSession, job: Job) -> int | None:
@@ -153,7 +155,15 @@ async def start_job(
 
     try:
         bundle = build_secret_bundle(upload=form.file, openai_token=openai_token, key_mode=key_mode)
-        await secret_storage.save_secret(secret_ref, bundle)
+        try:
+            await secret_storage.save_secret(secret_ref, bundle)
+        except HTTPException:
+            raise
+        except Exception as err:
+            raise HTTPException(
+                status_code=502,
+                detail='Failed to store the upload bundle (is secretsvc reachable?)',
+            ) from err
 
         job = Job(
             id=job_id,

@@ -39,7 +39,7 @@ For the final report, you MUST store it as a JSON which contains a list of findi
 }
 ```
 
-All vulnerability titles must be written in sentence case, not title case. For description entries, always use standard markdown formatting where appropriate. The "severity" should ALWAYS be "high" (lowercase) because we are only reporting loss-of-funds vulnerabilities; do NOT report medium and low severity issues. Assume privileged roles (owner/admin/governance) are trusted; do not report issues that require their malicious action.
+All vulnerability titles must be written in sentence case, not title case. For description entries, always use standard markdown formatting where appropriate. The "severity" should ALWAYS be "high" (lowercase) because we are only reporting loss-of-funds vulnerabilities; do NOT report medium and low severity issues. Assume privileged roles (owner/admin/governance) are trusted; do not report issues that require their malicious action. Do not put triple backticks (```) inside any JSON string value — describe code inline or with single backticks instead.
 
 Test that Python can parse your JSON report without errors before submission. Write the final JSON wrapped in a "```json ... ```" code block into `submission/audit.md` in your home directory. DO NOT add any extra text or explanation.
 

@@ -1,6 +1,7 @@
+from pathlib import Path
 from typing import Literal
 
-from pydantic import AliasChoices, Field, PostgresDsn, Secret, field_validator, model_validator
+from pydantic import AliasChoices, Field, Secret, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from api.util.fs import ROOT_DIR
@@ -19,7 +20,9 @@ class Settings(BaseSettings):
     BACKEND_WEB_PORT: int = 1337
     BACKEND_WEB_WORKERS: int = 4
 
-    DATABASE_DSN: Secret[PostgresDsn]
+    # Postgres in deployments; SQLite (sqlite+aiosqlite://) for local no-Docker runs.
+    DATABASE_DSN: Secret[str]
+    DATABASE_AUTO_CREATE_TABLES: bool = False
     BACKEND_DATABASE_POOL_SIZE: int = Field(
         default=10,
         validation_alias=AliasChoices('BACKEND_DATABASE_POOL_SIZE', 'DATABASE_POOL_SIZE'),
@@ -56,7 +59,7 @@ class Settings(BaseSettings):
     # Required only when BACKEND_OAI_KEY_MODE="proxy"
     OAI_PROXY_AES_KEY: Secret[str] | None = None
 
-    RABBITMQ_DSN: Secret[str]
+    RABBITMQ_DSN: Secret[str] | None = None
     RABBITMQ_QUEUE: str = 'instancer.jobs'
     RABBITMQ_QUEUE_SUFFIX: str | None = None
     RABBITMQ_QUEUE_TTL_SECONDS: int = 60
@@ -65,6 +68,26 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices('INSTANCER_MAX_CONCURRENT_JOBS', 'MAX_CONCURRENT_JOBS'),
     )
+
+    # Job dispatch backend: 'rabbitmq' publishes to the queue consumed by the
+    # instancer (Docker/K8s deployments); 'local' runs the worker as a child
+    # process of the API, removing the RabbitMQ/instancer/Docker dependency.
+    # Local mode requires BACKEND_WEB_WORKERS=1 (dispatching happens in-process).
+    BACKEND_QUEUE_BACKEND: str = 'rabbitmq'
+    BACKEND_LOCAL_MAX_CONCURRENT_JOBS: int = 1
+    BACKEND_LOCAL_WORKERS_ROOT: Path = ROOT_DIR / '.data' / 'local_workers'
+    BACKEND_LOCAL_WORKER_SCRIPT: Path = ROOT_DIR / 'docker' / 'worker' / 'init.py'
+    BACKEND_LOCAL_RUNNER_DIR: Path = ROOT_DIR / 'worker_runner'
+    BACKEND_LOCAL_RUNNER_SCRIPT: str = 'run_zcode_detect.sh'
+    BACKEND_LOCAL_SECRETSVC_HOST: str = '127.0.0.1'
+    BACKEND_LOCAL_SECRETSVC_PORT: int = 8081
+    # Read-only secrets token shared with secretsvc (env alias matches secretsvc's own).
+    BACKEND_LOCAL_SECRETS_TOKEN_RO: Secret[str] | None = Field(
+        default=None,
+        validation_alias=AliasChoices('BACKEND_LOCAL_SECRETS_TOKEN_RO', 'SECRETS_TOKEN_RO'),
+    )
+    BACKEND_LOCAL_RESULTSVC_HOST: str = '127.0.0.1'
+    BACKEND_LOCAL_RESULTSVC_PORT: int = 8083
 
     BACKEND_CORS_EXTRA_ORIGINS: list[str] = Field(default_factory=list)
 
@@ -87,6 +110,32 @@ class Settings(BaseSettings):
             return value
         suffix = value.strip().strip('.')
         return suffix or None
+
+    @field_validator('DATABASE_DSN', mode='after')
+    @classmethod
+    def _validate_database_dsn(cls, value: Secret[str]) -> Secret[str]:
+        dsn = value.get_secret_value()
+        if not dsn.startswith(('postgresql+asyncpg://', 'sqlite+aiosqlite://')):
+            msg = 'DATABASE_DSN must be a postgresql+asyncpg:// or sqlite+aiosqlite:// URL'
+            raise ValueError(msg)
+        return value
+
+    @model_validator(mode='after')
+    def _validate_queue_backend(self) -> 'Settings':
+        if self.BACKEND_QUEUE_BACKEND not in {'rabbitmq', 'local'}:
+            msg = 'BACKEND_QUEUE_BACKEND must be rabbitmq or local'
+            raise ValueError(msg)
+        if self.BACKEND_QUEUE_BACKEND == 'rabbitmq' and not self.RABBITMQ_DSN:
+            msg = 'RABBITMQ_DSN is required when BACKEND_QUEUE_BACKEND=rabbitmq'
+            raise ValueError(msg)
+        if self.BACKEND_QUEUE_BACKEND == 'local':
+            if self.BACKEND_WEB_WORKERS != 1:
+                msg = 'BACKEND_WEB_WORKERS must be 1 when BACKEND_QUEUE_BACKEND=local'
+                raise ValueError(msg)
+            if not self.BACKEND_LOCAL_SECRETS_TOKEN_RO:
+                msg = 'SECRETS_TOKEN_RO is required when BACKEND_QUEUE_BACKEND=local'
+                raise ValueError(msg)
+        return self
 
     @model_validator(mode='after')
     def _default_queue_suffix(self) -> 'Settings':

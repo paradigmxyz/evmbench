@@ -36,4 +36,21 @@ This reduces the blast radius of a compromised worker by keeping plaintext API k
 - Avoid logging request headers and environment variables in production environments.
 - Assume agent output is untrusted input; validate and sanitize before using it in other systems.
 
+## Local no-Docker mode (ZCode agent)
+
+The local mode (`backend/scripts/local_dev.sh`) trades isolation for
+convenience and is intended for single-user machines only:
+
+- Workers run directly on the host — there is no container sandbox, resource
+  limit or pid namespace. The audit agent executes with your user permissions
+  (`ZCODE_MODE=yolo` by default, matching the Codex runner's bypass mode).
+- The ZCode worker reuses the desktop app login session (no API key is
+  handled by the stack). The agent process can therefore access that session
+  like any process you run yourself.
+- For read-only audits of less trusted code, start the stack with
+  `ZCODE_MODE=plan`, which restricts the agent to non-mutating actions (at the
+  cost of not being able to build or run test suites against the sources).
+- Uploaded contract code is still untrusted input; audit code you would be
+  comfortable running local tooling against.
+
 

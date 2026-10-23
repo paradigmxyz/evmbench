@@ -22,7 +22,7 @@ with patch.dict(os.environ, INSTANCER_ENV, clear=True):
 
 class ReasoningPipelineTests(unittest.IsolatedAsyncioTestCase):
     async def test_effort_survives_queue_and_both_worker_launchers(self) -> None:
-        for effort in (None, 'low', 'high', 'max'):
+        for effort in (None, 'low', 'medium', 'high'):
             with self.subTest(effort=effort):
                 channel = MagicMock()
                 channel.default_exchange.publish = AsyncMock()
@@ -30,7 +30,7 @@ class ReasoningPipelineTests(unittest.IsolatedAsyncioTestCase):
                 await publisher.publish_job_start(
                     job_id='test',
                     secret_ref='ref',
-                    model='codex-gpt-5.6-sol',
+                    model='zcode-glm-5.3',
                     result_token='token',
                     reasoning_effort=effort,
                 )
@@ -82,7 +82,7 @@ class ReasoningPipelineTests(unittest.IsolatedAsyncioTestCase):
                         'type': 'job.start',
                         'job_id': 'test',
                         'secret_ref': 'ref',
-                        'model': 'codex-gpt-6-astra',
+                        'model': 'zcode-glm-5.3',
                         'result_token': 'token',
                         'reasoning_effort': effort,
                     }
@@ -124,9 +124,9 @@ class ReasoningRunnerTests(unittest.TestCase):
                 'SUBMISSION_DIR': root / 'submission',
                 'LOGS_DIR': root / 'logs',
                 'DETECT_MD_PATH': runner_dir / 'detect.md',
-                'CODEX_RUNNER_SH': runner,
+                'RUNNER_SH': runner,
                 'MODEL_MAP_PATH': runner_dir / 'model_map.json',
-                'MODEL_KEY': 'codex-gpt-5.6-sol',
+                'MODEL_KEY': 'zcode-glm-5.3',
                 'OAI_PROXY_BASE_URL': 'http://test.invalid',
             }.items():
                 self.enterContext(patch.object(worker, name, value))
@@ -140,7 +140,7 @@ class ReasoningRunnerTests(unittest.TestCase):
                         with patch.dict(os.environ, env, clear=True):
                             worker._run_codex_detect(openai_token='fake-key', key_mode=mode)
                         args = json.loads((root / 'logs/args.json').read_text())
-                        self.assertEqual(args[args.index('--model') + 1], 'gpt-5.6-sol')
+                        self.assertEqual(args[args.index('--model') + 1], 'GLM-5.3')
                         expected = effort or 'medium'
                         self.assertEqual(args[args.index('--config') + 1], f'model_reasoning_effort="{expected}"')
 

@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, Index, String, Text, Uuid, func, text
+from sqlalchemy import JSON, Boolean, DateTime, Enum, Index, String, Text, Uuid, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -39,7 +39,8 @@ class Job(Base):
     file_name: Mapped[str] = mapped_column(String(128))
     secret_ref: Mapped[str | None] = mapped_column(String(64))
 
-    result: Mapped[dict | None] = mapped_column(JSONB)
+    # JSONB on Postgres; plain JSON on SQLite (local no-Docker runs).
+    result: Mapped[dict | None] = mapped_column(JSONB().with_variant(JSON(), 'sqlite'))
     result_error: Mapped[str | None] = mapped_column(Text)
     result_received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     result_token: Mapped[str | None] = mapped_column(String(64))

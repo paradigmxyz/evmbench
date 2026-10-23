@@ -17,6 +17,11 @@ _db = DatabaseManager(
 )
 
 
+def get_database() -> DatabaseManager:
+    """Shared engine/session factory (also used by the local job dispatcher)."""
+    return _db
+
+
 async def get_db() -> AsyncGenerator[AsyncSession]:
     async with _db.acquire() as session:
         yield session

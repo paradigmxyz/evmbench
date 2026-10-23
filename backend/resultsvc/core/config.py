@@ -1,4 +1,4 @@
-from pydantic import AliasChoices, Field, PostgresDsn, Secret
+from pydantic import AliasChoices, Field, Secret, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from api.util.fs import ROOT_DIR
@@ -15,7 +15,8 @@ class Settings(BaseSettings):
     RESULTSVC_PORT: int = 8083
     RESULTSVC_WORKERS: int = 1
 
-    DATABASE_DSN: Secret[PostgresDsn]
+    # Postgres in deployments; SQLite (sqlite+aiosqlite://) for local no-Docker runs.
+    DATABASE_DSN: Secret[str]
     RESULTSVC_DATABASE_POOL_SIZE: int = Field(
         default=10,
         validation_alias=AliasChoices('RESULTSVC_DATABASE_POOL_SIZE', 'DATABASE_POOL_SIZE'),
@@ -24,6 +25,15 @@ class Settings(BaseSettings):
         default=10,
         validation_alias=AliasChoices('RESULTSVC_DATABASE_MAX_OVERFLOW', 'DATABASE_MAX_OVERFLOW'),
     )
+
+    @field_validator('DATABASE_DSN', mode='after')
+    @classmethod
+    def _validate_database_dsn(cls, value: Secret[str]) -> Secret[str]:
+        dsn = value.get_secret_value()
+        if not dsn.startswith(('postgresql+asyncpg://', 'sqlite+aiosqlite://')):
+            msg = 'DATABASE_DSN must be a postgresql+asyncpg:// or sqlite+aiosqlite:// URL'
+            raise ValueError(msg)
+        return value
 
 
 settings = Settings()  # type: ignore[missing-argument]

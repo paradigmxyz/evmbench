@@ -1,7 +1,7 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from sqlalchemy import select
+from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -26,12 +26,26 @@ class DatabaseManager:
             database_url,
             **kw,
         )
+        if database_url.startswith('sqlite'):
+            self._apply_sqlite_pragmas()
+
         self.SessionFactory = async_sessionmaker(
             self.engine,
             class_=AsyncSession,
             expire_on_commit=False,
             autoflush=False,
         )
+
+    def _apply_sqlite_pragmas(self) -> None:
+        # Local no-Docker runs share the file across the api/resultsvc
+        # processes; WAL plus a busy timeout keeps them from locking each other.
+        @event.listens_for(self.engine.sync_engine, 'connect')
+        def _set_sqlite_pragma(dbapi_connection: object, _record: object) -> None:
+            cursor = dbapi_connection.cursor()  # type: ignore[attr-defined]
+            cursor.execute('PRAGMA journal_mode=WAL')
+            cursor.execute('PRAGMA busy_timeout=30000')
+            cursor.execute('PRAGMA foreign_keys=ON')
+            cursor.close()
 
     @asynccontextmanager
     async def acquire(self) -> AsyncGenerator[AsyncSession]:
