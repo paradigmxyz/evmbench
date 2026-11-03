@@ -107,7 +107,10 @@ def _extract_fenced_json(text: str) -> str:
     start = text.find('\n', start)
     if start == -1:
         return text
-    end = text.find('```', start + 1)
+    # The closing fence starts a line. A ``` inside a JSON string value (e.g. a
+    # markdown code block in a proof of concept) cannot, because JSON escapes
+    # newlines in strings.
+    end = text.find('\n```', start)
     if end == -1:
         return text
     return text[start + 1 : end].strip()
